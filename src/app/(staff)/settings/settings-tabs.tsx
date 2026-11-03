@@ -1,0 +1,412 @@
+"use client";
+
+import { Field, inputClass, selectClass } from "@/components/app/form";
+import { buttonClass } from "@/components/app/page";
+import { Panel, PanelHeader } from "@/components/dashboard/primitives";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { formatDate, formatKsh } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { isoDate, kshAmount } from "@/schemas/money";
+import type { Role } from "@/services/viewer";
+import { CalendarPlus, Church, DatabaseBackup, KeyRound, Lock, Mail, Plus, ShieldCheck, Timer, UserPlus } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { z } from "zod";
+
+type Period = { id: string; name: string; startsOn: string; endsOn: string };
+type Setup = { periods: Period[]; churches: { id: string; name: string; members: number; quotas: Record<string, number> }[] };
+type User = { id: string; email: string; role: Role; isActive: boolean; parishioner: string | null; invitePending: boolean; createdAt: string };
+
+const notConnected = (what: string) => toast.success(`${what} is ready to save`, { description: "Saving is connected in the backend milestone." });
+
+const ROLE_INFO: Record<Role, string> = {
+  admin: "Everything, including users and settings",
+  treasurer: "Records payments, deposits, pledges and imports",
+  auditor: "Sees everything, changes nothing",
+  member: "Their own giving and church totals only",
+};
+
+export function SettingsTabs({
+  setup,
+  users,
+  churches,
+  canEdit,
+  isAdmin,
+}: {
+  setup: Setup;
+  users: User[];
+  churches: { id: string; name: string }[];
+  canEdit: boolean;
+  isAdmin: boolean;
+}) {
+  return (
+    <Tabs defaultValue="parish" className="gap-5">
+      <TabsList className="h-11 w-full justify-start overflow-x-auto sm:w-fit">
+        <TabsTrigger value="parish" className="h-9 px-3 data-active:bg-card data-active:text-foreground data-active:shadow-sm">
+          Churches &amp; quotas
+        </TabsTrigger>
+        <TabsTrigger value="periods" className="h-9 px-3 data-active:bg-card data-active:text-foreground data-active:shadow-sm">
+          Periods
+        </TabsTrigger>
+        <TabsTrigger value="users" className="h-9 px-3 data-active:bg-card data-active:text-foreground data-active:shadow-sm">
+          Users
+        </TabsTrigger>
+        <TabsTrigger value="security" className="h-9 px-3 data-active:bg-card data-active:text-foreground data-active:shadow-sm">
+          Security
+        </TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="parish">
+        <QuotasPanel setup={setup} canEdit={canEdit} />
+      </TabsContent>
+      <TabsContent value="periods">
+        <PeriodsPanel periods={setup.periods} canEdit={canEdit} />
+      </TabsContent>
+      <TabsContent value="users">
+        <UsersPanel users={users} canInvite={isAdmin} churches={churches} />
+      </TabsContent>
+      <TabsContent value="security">
+        <SecurityPanel />
+      </TabsContent>
+    </Tabs>
+  );
+}
+
+function QuotasPanel({ setup, canEdit }: { setup: Setup; canEdit: boolean }) {
+  const [periodId, setPeriodId] = useState(setup.periods[0]?.id ?? "");
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const period = setup.periods.find((p) => p.id === periodId);
+  const total = setup.churches.reduce((s, c) => s + (c.quotas[periodId] ?? 0), 0);
+
+  function save() {
+    const next: Record<string, string> = {};
+    for (const [id, v] of Object.entries(draft)) {
+      const r = kshAmount.safeParse(v);
+      if (!r.success) next[id] = r.error.issues[0]?.message ?? "Invalid amount";
+    }
+    setErrors(next);
+    if (Object.keys(next).length === 0) notConnected(`${period?.name} quotas`);
+  }
+
+  return (
+    <Panel className="flex flex-col gap-4 p-5">
+      <PanelHeader
+        id="quotas-title"
+        title="Church quotas"
+        description="What each church is asked to raise in a period."
+        action={
+          <div className="flex flex-wrap gap-2">
+            <label htmlFor="quota-period" className="sr-only">
+              Period
+            </label>
+            <select id="quota-period" value={periodId} onChange={(e) => setPeriodId(e.target.value)} className={cn(selectClass, "h-10 w-auto")}>
+              {setup.periods.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+            {canEdit && <AddChurchButton />}
+          </div>
+        }
+      />
+      <Table className="min-w-[520px] text-[13px]">
+        <TableHeader>
+          <TableRow className="bg-background hover:bg-background">
+            <TableHead className="font-medium text-muted-foreground">Church</TableHead>
+            <TableHead className="text-right font-medium text-muted-foreground">Active members</TableHead>
+            <TableHead className="w-56 text-right font-medium text-muted-foreground">{period?.name} quota</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {setup.churches.map((c) => (
+            <TableRow key={c.id} className="border-slate-100">
+              <TableCell className="py-3 font-medium">
+                <span className="inline-flex items-center gap-2">
+                  <Church className="size-4 text-muted-foreground" aria-hidden />
+                  {c.name}
+                </span>
+              </TableCell>
+              <TableCell className="py-3 text-right tabular">{c.members}</TableCell>
+              <TableCell className="py-2 text-right">
+                {canEdit ? (
+                  <div className="flex flex-col items-end gap-1">
+                    <label htmlFor={`quota-${c.id}`} className="sr-only">
+                      {c.name} quota in KSh
+                    </label>
+                    <input
+                      id={`quota-${c.id}`}
+                      inputMode="decimal"
+                      defaultValue={((c.quotas[periodId] ?? 0) / 100).toLocaleString("en-KE")}
+                      key={periodId}
+                      onChange={(e) => setDraft((d) => ({ ...d, [c.id]: e.target.value }))}
+                      className={cn(inputClass, "h-10 w-44 text-right tabular")}
+                      aria-invalid={!!errors[c.id]}
+                    />
+                    {errors[c.id] && <span className="text-xs text-negative">{errors[c.id]}</span>}
+                  </div>
+                ) : (
+                  <span className="tabular">{formatKsh(c.quotas[periodId] ?? 0)}</span>
+                )}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4 text-[13px]">
+        <span className="tabular">
+          Parish total <strong>{formatKsh(total)}</strong>
+        </span>
+        {canEdit && (
+          <button type="button" onClick={save} className={buttonClass("primary")}>
+            Save quotas
+          </button>
+        )}
+      </div>
+    </Panel>
+  );
+}
+
+function AddChurchButton() {
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string>();
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger className={buttonClass("secondary")}>
+        <Plus className="size-4" aria-hidden />
+        Add church
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-sm">
+        <form
+          noValidate
+          className="flex flex-col gap-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const name = String(new FormData(e.currentTarget).get("name") ?? "").trim();
+            if (name.length < 2) return setError("Enter the church's name");
+            setError(undefined);
+            setOpen(false);
+            notConnected(name);
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Add church</DialogTitle>
+            <DialogDescription>Set its quota afterwards for each period.</DialogDescription>
+          </DialogHeader>
+          <Field id="church-name" label="Name" error={error}>
+            <input id="church-name" name="name" className={inputClass} aria-invalid={!!error} />
+          </Field>
+          <DialogFooter>
+            <DialogClose className={buttonClass("secondary")}>Cancel</DialogClose>
+            <button type="submit" className={buttonClass("primary")}>
+              Add church
+            </button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const periodSchema = z
+  .object({ name: z.string().trim().min(2, "Give the period a name, like 2027").max(40), startsOn: isoDate, endsOn: isoDate })
+  .refine((v) => v.endsOn >= v.startsOn, { path: ["endsOn"], message: "End must be on or after the start" });
+
+function PeriodsPanel({ periods, canEdit }: { periods: Period[]; canEdit: boolean }) {
+  const [errors, setErrors] = useState<Record<string, string | undefined>>({});
+  return (
+    <div className="flex flex-wrap items-start gap-4">
+      <Panel className="min-w-0 flex-[2_1_420px] overflow-hidden">
+        <div className="px-5 py-[18px]">
+          <PanelHeader id="periods-title" title="Quota periods" description="Periods can't overlap. The database enforces this." />
+        </div>
+        <Table className="text-[13px]">
+          <TableHeader>
+            <TableRow className="border-t border-border bg-background hover:bg-background">
+              <TableHead className="pl-5 font-medium text-muted-foreground">Name</TableHead>
+              <TableHead className="font-medium text-muted-foreground">Starts</TableHead>
+              <TableHead className="pr-5 font-medium text-muted-foreground">Ends</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {periods.map((p) => (
+              <TableRow key={p.id} className="border-slate-100">
+                <TableCell className="py-3 pl-5 font-medium">{p.name}</TableCell>
+                <TableCell className="py-3 tabular">{formatDate(p.startsOn)}</TableCell>
+                <TableCell className="py-3 pr-5 tabular">{formatDate(p.endsOn)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Panel>
+      {canEdit && (
+        <Panel className="flex min-w-0 flex-[1_1_300px] flex-col gap-4 p-5">
+          <h2 className="text-base font-semibold">New period</h2>
+          <form
+            noValidate
+            className="flex flex-col gap-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const parsed = periodSchema.safeParse(Object.fromEntries(new FormData(e.currentTarget)));
+              if (!parsed.success) {
+                const fe = z.flattenError(parsed.error).fieldErrors;
+                return setErrors({ name: fe.name?.[0], startsOn: fe.startsOn?.[0], endsOn: fe.endsOn?.[0] });
+              }
+              const v = parsed.data;
+              const clash = periods.find((p) => v.startsOn <= p.endsOn && p.startsOn <= v.endsOn);
+              if (clash) return setErrors({ startsOn: `Overlaps the ${clash.name} period (${formatDate(clash.startsOn)} – ${formatDate(clash.endsOn)})` });
+              setErrors({});
+              notConnected(`The ${v.name} period`);
+            }}
+          >
+            <Field id="period-name" label="Name" error={errors.name}>
+              <input id="period-name" name="name" placeholder="2027" className={inputClass} aria-invalid={!!errors.name} />
+            </Field>
+            <Field id="period-start" label="Starts on" error={errors.startsOn}>
+              <input id="period-start" name="startsOn" type="date" className={inputClass} aria-invalid={!!errors.startsOn} />
+            </Field>
+            <Field id="period-end" label="Ends on" error={errors.endsOn}>
+              <input id="period-end" name="endsOn" type="date" className={inputClass} aria-invalid={!!errors.endsOn} />
+            </Field>
+            <button type="submit" className={buttonClass("primary")}>
+              <CalendarPlus className="size-4" aria-hidden />
+              Add period
+            </button>
+          </form>
+        </Panel>
+      )}
+    </div>
+  );
+}
+
+const inviteSchema = z
+  .object({ email: z.email("Enter a valid email address"), role: z.enum(["admin", "treasurer", "auditor", "member"]), parishioner: z.string().optional() })
+  .refine((v) => v.role !== "member" || !!v.parishioner?.trim(), { path: ["parishioner"], message: "Members must be linked to their parishioner record" });
+
+function UsersPanel({ users, canInvite }: { users: User[]; canInvite: boolean; churches: { id: string; name: string }[] }) {
+  const [role, setRole] = useState<Role>("member");
+  const [errors, setErrors] = useState<Record<string, string | undefined>>({});
+  return (
+    <div className="flex flex-wrap items-start gap-4">
+      <Panel className="min-w-0 flex-[2_1_520px] overflow-hidden">
+        <div className="px-5 py-[18px]">
+          <PanelHeader id="users-title" title="People who can sign in" description="Roles decide what each person can see and do." />
+        </div>
+        <Table className="min-w-[560px] text-[13px]">
+          <TableHeader>
+            <TableRow className="border-t border-border bg-background hover:bg-background">
+              <TableHead className="pl-5 font-medium text-muted-foreground">Email</TableHead>
+              <TableHead className="font-medium text-muted-foreground">Role</TableHead>
+              <TableHead className="font-medium text-muted-foreground">Linked to</TableHead>
+              <TableHead className="pr-5 font-medium text-muted-foreground">Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {users.map((u) => (
+              <TableRow key={u.id} className="border-slate-100">
+                <TableCell className="py-3 pl-5 font-medium">{u.email}</TableCell>
+                <TableCell className="py-3 capitalize">{u.role}</TableCell>
+                <TableCell className="py-3 text-slate-600">{u.parishioner ?? "—"}</TableCell>
+                <TableCell className="py-3 pr-5">
+                  {!u.isActive ? (
+                    <span className="text-muted-foreground">Disabled</span>
+                  ) : u.invitePending ? (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-warning-soft px-2 py-0.5 text-xs font-medium text-warning-text">
+                      <Mail className="size-3" aria-hidden /> Invite pending
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-positive-soft px-2 py-0.5 text-xs font-medium text-positive-text">
+                      <ShieldCheck className="size-3" aria-hidden /> Active
+                    </span>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Panel>
+      <Panel className="flex min-w-0 flex-[1_1_300px] flex-col gap-4 p-5">
+        <h2 className="text-base font-semibold">Invite someone</h2>
+        {!canInvite ? (
+          <p className="text-[13px] text-muted-foreground">Only an admin can invite people or change roles.</p>
+        ) : (
+          <form
+            noValidate
+            className="flex flex-col gap-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const parsed = inviteSchema.safeParse(Object.fromEntries(new FormData(e.currentTarget)));
+              if (!parsed.success) {
+                const fe = z.flattenError(parsed.error).fieldErrors;
+                return setErrors({ email: fe.email?.[0], parishioner: fe.parishioner?.[0] });
+              }
+              if (users.some((u) => u.email.toLowerCase() === parsed.data.email.toLowerCase())) return setErrors({ email: "That email already has an account" });
+              setErrors({});
+              notConnected(`An invite for ${parsed.data.email}`);
+            }}
+          >
+            <Field id="invite-email" label="Email" error={errors.email}>
+              <input id="invite-email" name="email" type="email" className={inputClass} aria-invalid={!!errors.email} />
+            </Field>
+            <Field id="invite-role" label="Role" hint={ROLE_INFO[role]}>
+              <select id="invite-role" name="role" value={role} onChange={(e) => setRole(e.target.value as Role)} className={selectClass}>
+                <option value="member">Member</option>
+                <option value="treasurer">Treasurer</option>
+                <option value="auditor">Auditor</option>
+                <option value="admin">Admin</option>
+              </select>
+            </Field>
+            {role === "member" && (
+              <Field id="invite-parishioner" label="Parishioner record" error={errors.parishioner} hint="Type their name exactly as on the parishioner list.">
+                <input id="invite-parishioner" name="parishioner" className={inputClass} aria-invalid={!!errors.parishioner} />
+              </Field>
+            )}
+            <button type="submit" className={buttonClass("primary")}>
+              <UserPlus className="size-4" aria-hidden />
+              Send invite
+            </button>
+          </form>
+        )}
+      </Panel>
+    </div>
+  );
+}
+
+function SecurityPanel() {
+  const items = [
+    { icon: KeyRound, title: "Passwords", body: "Hashed with Argon2id. At least 12 characters; common and breached passwords are refused.", status: "Planned", ready: false },
+    { icon: Timer, title: "Lockout", body: "Repeated wrong passwords lock the account for 15 minutes and are rate-limited per address.", status: "Planned", ready: false },
+    { icon: ShieldCheck, title: "Two-step sign-in", body: "Required for admins and treasurers before real parish money is recorded.", status: "Planned", ready: false },
+    { icon: Lock, title: "Append-only ledger", body: "Payments and the audit log can't be edited or deleted, enforced by the database itself.", status: "On", ready: true },
+    { icon: DatabaseBackup, title: "Backups", body: "Encrypted nightly backups with a tested restore. Not approved for real money until a restore drill passes.", status: "Planned", ready: false },
+  ];
+  return (
+    <Panel className="flex flex-col gap-1 p-5">
+      <PanelHeader id="security-title" title="Security" description="What protects the parish's records. Planned items arrive with the backend." />
+      <ul className="mt-3 flex flex-col">
+        {items.map(({ icon: Icon, title, body, status, ready }, i) => (
+          <li key={title} className={cn("flex items-start gap-3 py-3.5", i > 0 && "border-t border-slate-100")}>
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-muted text-slate-600">
+              <Icon className="size-[18px]" strokeWidth={1.75} aria-hidden />
+            </span>
+            <span className="flex grow flex-col">
+              <span className="font-medium">{title}</span>
+              <span className="text-[13px] text-muted-foreground">{body}</span>
+            </span>
+            <span
+              className={cn(
+                "rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap",
+                ready ? "border-green-200 bg-positive-soft text-positive-text" : "border-slate-200 bg-muted text-slate-600",
+              )}
+            >
+              {status}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </Panel>
+  );
+}

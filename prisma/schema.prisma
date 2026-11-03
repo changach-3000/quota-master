@@ -1,0 +1,201 @@
+generator client {
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model audit_log {
+  id            BigInt   @id @default(autoincrement())
+  occurred_at   DateTime @default(now()) @db.Timestamptz(6)
+  actor_user_id String?  @db.Uuid
+  action        String
+  entity_type   String
+  entity_id     String?
+  before_data   Json?
+  after_data    Json?
+  is_backdated  Boolean  @default(false)
+  request_id    String?
+  ip_address    String?  @db.Inet
+  users         users?   @relation(fields: [actor_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([entity_type, entity_id], map: "audit_log_entity_idx")
+  @@index([occurred_at])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model church_quotas {
+  church_id     String        @db.Uuid
+  period_id     String        @db.Uuid
+  amount_cents  BigInt
+  created_at    DateTime      @default(now()) @db.Timestamptz(6)
+  churches      churches      @relation(fields: [church_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  quota_periods quota_periods @relation(fields: [period_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([church_id, period_id])
+}
+
+model churches {
+  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String          @unique
+  created_at    DateTime        @default(now()) @db.Timestamptz(6)
+  church_quotas church_quotas[]
+  households    households[]
+  parishioners  parishioners[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model contributions {
+  id                  String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  kind                contribution_kind
+  parishioner_id      String            @db.Uuid
+  period_id           String            @db.Uuid
+  amount_cents        BigInt
+  method              payment_method?
+  mpesa_code          String?           @unique
+  receipt_no          String?
+  received_on         DateTime          @db.Date
+  reverses_id         String?           @db.Uuid
+  reason              String?
+  idempotency_key     String            @unique
+  recorded_by         String?           @db.Uuid
+  recorded_at         DateTime          @default(now()) @db.Timestamptz(6)
+  notes               String?
+  parishioners        parishioners      @relation(fields: [parishioner_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  quota_periods       quota_periods     @relation(fields: [period_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users               users?            @relation(fields: [recorded_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  contributions       contributions?    @relation("contributionsTocontributions", fields: [reverses_id, parishioner_id, period_id, amount_cents], references: [id, parishioner_id, period_id, amount_cents], onDelete: NoAction, onUpdate: NoAction, map: "contributions_reversal_matches_original")
+  other_contributions contributions?    @relation("contributionsTocontributions")
+  deposit_items       deposit_items?
+
+  @@unique([id, parishioner_id, period_id, amount_cents], map: "contributions_reversal_target_key")
+  @@unique([reverses_id, parishioner_id, period_id, amount_cents], map: "contributions_reverses_id_key")
+  @@index([parishioner_id, period_id], map: "contributions_parishioner_period_idx")
+  @@index([received_on])
+}
+
+model deposit_items {
+  deposit_id      String        @db.Uuid
+  contribution_id String        @unique(map: "deposit_items_contribution_key") @db.Uuid
+  contributions   contributions @relation(fields: [contribution_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  deposits        deposits      @relation(fields: [deposit_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([deposit_id, contribution_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model deposits {
+  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  deposited_on  DateTime        @db.Date
+  amount_cents  BigInt
+  bank_account  String          @default("NCBA")
+  bank_ref      String?
+  recorded_by   String?         @db.Uuid
+  recorded_at   DateTime        @default(now()) @db.Timestamptz(6)
+  notes         String?
+  deposit_items deposit_items[]
+  users         users?          @relation(fields: [recorded_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model households {
+  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  church_id    String         @db.Uuid
+  label        String
+  created_at   DateTime       @default(now()) @db.Timestamptz(6)
+  churches     churches       @relation(fields: [church_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  parishioners parishioners[]
+
+  @@unique([church_id, label])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model parishioners {
+  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  church_id     String          @db.Uuid
+  household_id  String?         @db.Uuid
+  display_name  String
+  phone         String?
+  is_active     Boolean         @default(true)
+  created_at    DateTime        @default(now()) @db.Timestamptz(6)
+  contributions contributions[]
+  churches      churches        @relation(fields: [church_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  households    households?     @relation(fields: [household_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  pledges       pledges[]
+  users         users?
+
+  @@index([church_id], map: "parishioners_church_idx")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model pledges {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  parishioner_id String        @db.Uuid
+  period_id      String        @db.Uuid
+  amount_cents   BigInt
+  version        Int
+  effective_from DateTime      @db.Date
+  is_current     Boolean       @default(true)
+  supersedes_id  String?       @db.Uuid
+  created_by     String?       @db.Uuid
+  created_at     DateTime      @default(now()) @db.Timestamptz(6)
+  users          users?        @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  parishioners   parishioners  @relation(fields: [parishioner_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  quota_periods  quota_periods @relation(fields: [period_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  pledges        pledges?      @relation("pledgesTopledges", fields: [supersedes_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_pledges  pledges[]     @relation("pledgesTopledges")
+
+  @@unique([parishioner_id, period_id], map: "pledges_one_current_key", where: raw("is_current"))
+  @@unique([parishioner_id, period_id, version])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This table contains exclusion constraints and requires additional setup for migrations. Visit https://pris.ly/d/exclusion-constraints for more info.
+model quota_periods {
+  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String          @unique
+  starts_on     DateTime        @db.Date
+  ends_on       DateTime        @db.Date
+  created_at    DateTime        @default(now()) @db.Timestamptz(6)
+  church_quotas church_quotas[]
+  contributions contributions[]
+  pledges       pledges[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model users {
+  id                 String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email              String
+  password_hash      String?
+  role               user_role
+  parishioner_id     String?         @unique @db.Uuid
+  is_active          Boolean         @default(true)
+  failed_login_count Int             @default(0)
+  locked_until       DateTime?       @db.Timestamptz(6)
+  created_at         DateTime        @default(now()) @db.Timestamptz(6)
+  audit_log          audit_log[]
+  contributions      contributions[]
+  deposits           deposits[]
+  pledges            pledges[]
+  parishioners       parishioners?   @relation(fields: [parishioner_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+enum contribution_kind {
+  payment
+  reversal
+}
+
+enum payment_method {
+  mpesa
+  cash
+}
+
+enum user_role {
+  admin
+  treasurer
+  auditor
+  member
+}
