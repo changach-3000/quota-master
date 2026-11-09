@@ -6,7 +6,9 @@ import { Panel } from "@/components/dashboard/primitives";
 import { formatDate, formatKsh } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { recordPaymentSchema } from "@/schemas/contribution";
-import { Banknote, Check, CircleAlert, Search, Smartphone, X } from "lucide-react";
+import { recordPaymentAction } from "../actions";
+import { Banknote, Check, CircleAlert, LoaderCircle, Search, Smartphone, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -28,6 +30,8 @@ export function RecordPaymentForm({ parishioners, today, periodName }: { parishi
   const [errors, setErrors] = useState<Errors>({});
   // One key per attempt: a double-click or retry can't create two payments.
   const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
+  const [pending, setPending] = useState(false);
+  const router = useRouter();
 
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -51,9 +55,10 @@ export function RecordPaymentForm({ parishioners, today, periodName }: { parishi
     setIdempotencyKey(crypto.randomUUID());
   }
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
-    const parsed = recordPaymentSchema.safeParse({
+    if (pending) return;
+    const input = {
       parishionerId: selected?.id ?? "",
       method,
       mpesaCode: method === "mpesa" ? mpesaCode : undefined,
@@ -62,7 +67,9 @@ export function RecordPaymentForm({ parishioners, today, periodName }: { parishi
       receivedOn,
       notes: notes || undefined,
       idempotencyKey,
-    });
+    };
+    // Check here first for instant feedback; the server repeats every check.
+    const parsed = recordPaymentSchema.safeParse(input);
     const extra: Errors = {};
     if (receivedOn > today) extra.receivedOn = "The date can't be in the future";
     if (!parsed.success || Object.keys(extra).length) {
@@ -77,11 +84,54 @@ export function RecordPaymentForm({ parishioners, today, periodName }: { parishi
       });
       return;
     }
+
     setErrors({});
-    toast.success(`${formatKsh(parsed.data.amount)} for ${selected!.name} is ready to save`, {
-      description: "Every check passed. Saving to the ledger is connected in the backend milestone.",
-    });
-    reset();
+    setPending(true);
+    try {
+      // On failure the key is kept, so retrying can never record the payment twice.
+      const result = await recordPaymentAction(input);
+      if (result.ok) {
+        const b = result.balance;
+        toast.success(`${formatKsh(result.amount)} recorded for ${result.parishioner}`, {
+          description:
+            b.pledged > 0
+              ? b.outstanding > 0
+                ? `${formatKsh(b.outstanding)} still outstanding on their ${result.period} pledge.`
+                : b.credit > 0
+                  ? `Pledge complete, with ${formatKsh(b.credit)} credit.`
+                  : "Pledge complete."
+              : `${formatKsh(b.received)} received from them in ${result.period}.`,
+        });
+        if (result.backdated) toast.info("Recorded as backdated", { description: "It is flagged in the audit log because the date is over a week ago." });
+        reset();
+        router.refresh();
+        return;
+      }
+      const err = result.error;
+      switch (err.code) {
+        case "invalid":
+          setErrors(err.fieldErrors as Errors);
+          break;
+        case "duplicate_mpesa":
+          setErrors({
+            mpesaCode: `Already recorded${err.existing.receivedOn ? ` on ${formatDate(err.existing.receivedOn)}` : ""} for ${err.existing.parishioner}. Check the SMS.`,
+          });
+          break;
+        case "future_date":
+        case "no_period":
+          setErrors({ receivedOn: err.message });
+          break;
+        case "unknown_parishioner":
+          setErrors({ parishionerId: err.message });
+          break;
+        default:
+          toast.error("Payment not recorded", { description: err.message });
+      }
+    } catch {
+      toast.error("Couldn't reach the server", { description: "Nothing was recorded. Check your connection and press Record payment again; it is safe to retry." });
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
@@ -237,9 +287,9 @@ export function RecordPaymentForm({ parishioners, today, periodName }: { parishi
           <button type="button" onClick={reset} className={buttonClass("secondary")}>
             Clear
           </button>
-          <button type="submit" className={buttonClass("primary")}>
-            <Check className="size-4" aria-hidden />
-            Record payment
+          <button type="submit" disabled={pending} className={buttonClass("primary")}>
+            {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : <Check className="size-4" aria-hidden />}
+            {pending ? "Recording…" : "Record payment"}
           </button>
         </div>
       </Panel>

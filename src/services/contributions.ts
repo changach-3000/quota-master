@@ -44,7 +44,11 @@ export async function listContributions(viewer: Viewer | null, f: ContributionFi
   const where: Prisma.Sql[] = [Prisma.sql`TRUE`];
   if (f.q) {
     const like = `%${f.q.trim()}%`;
-    where.push(Prisma.sql`(pa.display_name ILIKE ${like} OR c.mpesa_code ILIKE ${like} OR c.receipt_no ILIKE ${like})`);
+    // Matches a reversal through its original's code too, so a search shows both rows and nets to the truth.
+    where.push(
+      Prisma.sql`(pa.display_name ILIKE ${like} OR c.mpesa_code ILIKE ${like} OR c.receipt_no ILIKE ${like}
+                  OR o.mpesa_code ILIKE ${like} OR o.receipt_no ILIKE ${like})`,
+    );
   }
   if (f.church) where.push(Prisma.sql`ch.id = ${f.church}::uuid`);
   if (f.method === "mpesa" || f.method === "cash") where.push(Prisma.sql`c.method = ${f.method}::payment_method`);
@@ -89,6 +93,7 @@ export async function listContributions(viewer: Viewer | null, f: ContributionFi
       FROM contributions c
       JOIN parishioners pa ON pa.id = c.parishioner_id
       JOIN churches ch ON ch.id = pa.church_id
+      LEFT JOIN contributions o ON o.id = c.reverses_id
      WHERE ${whereSql}`;
 
   return {

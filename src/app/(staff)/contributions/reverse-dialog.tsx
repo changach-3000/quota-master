@@ -4,11 +4,12 @@ import { Field, textareaClass } from "@/components/app/form";
 import { buttonClass } from "@/components/app/page";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { formatDate, formatKsh } from "@/lib/format";
-import { TriangleAlert, Undo2 } from "lucide-react";
+import { LoaderCircle, TriangleAlert, Undo2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { reversePaymentAction } from "./actions";
 
-type Contribution = { parishioner: string; amount: number; reference: string; receivedOn: string; deposited: boolean };
+type Contribution = { id: string; parishioner: string; amount: number; reference: string; receivedOn: string; deposited: boolean };
 
 const REASONS = ["Entered twice", "Wrong amount entered", "Recorded against the wrong parishioner", "Payment bounced or was refunded"];
 
@@ -17,17 +18,34 @@ export function ReverseButton({ contribution: c }: { contribution: Contribution 
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string>();
+  const [pending, setPending] = useState(false);
+  // One key per dialog: a double-click or retry can't create two reversals.
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (pending) return;
     if (reason.trim().length < 5) {
       setError("Give a reason of at least a few words. It is kept in the audit log.");
       return;
     }
-    setOpen(false);
-    setReason("");
-    setError(undefined);
-    toast.info("Reversal checked and ready", { description: "Saving to the ledger is connected in the backend milestone." });
+    setPending(true);
+    try {
+      const result = await reversePaymentAction({ contributionId: c.id, reason, idempotencyKey });
+      if (result.ok) {
+        setOpen(false);
+        toast.success(`Reversed ${formatKsh(c.amount)} for ${c.parishioner}`, {
+          description: "The original stays in the ledger. Record the correct payment if one is due.",
+        });
+        return;
+      }
+      if (result.error.code === "invalid") setError(result.error.fieldErrors.reason ?? "Check the reason and try again.");
+      else setError(result.error.message);
+    } catch {
+      setError("Couldn't reach the server. Nothing was changed; it is safe to try again.");
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
@@ -75,9 +93,9 @@ export function ReverseButton({ contribution: c }: { contribution: Contribution 
           </div>
           <DialogFooter>
             <DialogClose className={buttonClass("secondary")}>Cancel</DialogClose>
-            <button type="submit" className={buttonClass("danger")}>
-              <Undo2 className="size-4" aria-hidden />
-              Reverse payment
+            <button type="submit" disabled={pending} className={buttonClass("danger")}>
+              {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : <Undo2 className="size-4" aria-hidden />}
+              {pending ? "Reversing…" : "Reverse payment"}
             </button>
           </DialogFooter>
         </form>

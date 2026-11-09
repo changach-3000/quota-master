@@ -139,6 +139,7 @@ async function Results({ searchParams }: { searchParams: PageProps<"/contributio
                       {(r.status === "undeposited" || r.status === "deposited") && (
                         <ReverseButton
                           contribution={{
+                            id: r.id,
                             parishioner: r.parishioner,
                             amount: r.amount,
                             reference: r.reference,

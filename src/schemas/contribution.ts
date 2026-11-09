@@ -25,3 +25,11 @@ export const recordPaymentSchema = z
   });
 
 export type RecordPaymentInput = z.input<typeof recordPaymentSchema>;
+
+export const reversePaymentSchema = z.object({
+  contributionId: z.uuid(),
+  reason: z.string().trim().min(5, "Give a reason of at least a few words. It is kept in the audit log.").max(500),
+  idempotencyKey: z.uuid(),
+});
+
+export type ReversePaymentInput = z.input<typeof reversePaymentSchema>;
