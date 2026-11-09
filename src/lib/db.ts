@@ -6,7 +6,10 @@ import { PrismaClient } from "@/generated/prisma/client";
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 function createClient() {
-  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+  // Run app sessions in UTC: the adapter parses timestamptz text as UTC, so a
+  // server default like Africa/Nairobi would shift every timestamp by +3h.
+  // Display code converts to Nairobi time explicitly where it needs to.
+  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL, options: "-c TimeZone=UTC" });
   return new PrismaClient({ adapter });
 }
 

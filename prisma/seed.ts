@@ -5,6 +5,7 @@
 // Contributions are append-only, so this only runs against an empty ledger.
 // Run: npx prisma db seed
 import { randomUUID } from "node:crypto";
+import { hash } from "@node-rs/argon2";
 import { config } from "dotenv";
 import { Client } from "pg";
 
@@ -73,13 +74,35 @@ type Contribution = {
   recorded_by: string;
 };
 
+/**
+ * Gives demo accounts (@example.test) without a password the one from
+ * SEED_DEMO_PASSWORD, hashed with Argon2id. Safe to re-run; never touches
+ * other accounts or accounts that already have a password.
+ */
+async function setDemoPasswords(db: Client) {
+  const password = process.env.SEED_DEMO_PASSWORD;
+  if (!password) {
+    console.log("SEED_DEMO_PASSWORD not set; demo accounts keep no password (use the demo buttons).");
+    return;
+  }
+  if (password.length < 12) throw new Error("SEED_DEMO_PASSWORD must be at least 12 characters");
+  const passwordHash = await hash(password, { algorithm: 2, memoryCost: 19_456, timeCost: 2, parallelism: 1 });
+  const { rowCount } = await db.query(
+    `UPDATE users SET password_hash = $1, password_changed_at = now()
+      WHERE email LIKE '%@example.test' AND password_hash IS NULL`,
+    [passwordHash],
+  );
+  console.log(`Set the demo password on ${rowCount} account(s).`);
+}
+
 async function main() {
   const db = new Client({ connectionString: process.env.DATABASE_URL });
   await db.connect();
   try {
     const { rows } = await db.query("SELECT count(*)::int AS n FROM contributions");
     if (rows[0].n > 0) {
-      console.log("Ledger already has data; the seed only runs on an empty database. Nothing changed.");
+      console.log("Ledger already has data; the seed only runs on an empty database. Ledger unchanged.");
+      await setDemoPasswords(db);
       return;
     }
 
@@ -283,6 +306,7 @@ async function main() {
     }
 
     await db.query("COMMIT"); // deferred deposit-total checks run here
+    await setDemoPasswords(db);
     console.log(
       `Seeded ${people.length} parishioners, ${contributions.length} contributions, ${deposits} deposits (as of ${today}).`,
     );

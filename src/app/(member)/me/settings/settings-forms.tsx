@@ -1,5 +1,6 @@
 "use client";
 
+import { ChangePasswordForm } from "@/components/app/change-password-form";
 import { Field, inputClass } from "@/components/app/form";
 import { buttonClass } from "@/components/app/page";
 import { Panel, PanelHeader } from "@/components/dashboard/primitives";
@@ -15,20 +16,10 @@ const contactSchema = z.object({
     .regex(/^((\+?254|0)[17]\d{8})?$/, "Use a Kenyan number like 0712 345 678"),
 });
 
-const passwordSchema = z
-  .object({
-    current: z.string().min(1, "Enter your current password"),
-    next: z.string().min(12, "Use at least 12 characters").max(256),
-    confirm: z.string(),
-  })
-  .refine((v) => v.next === v.confirm, { path: ["confirm"], message: "The two new passwords don't match" })
-  .refine((v) => v.next !== v.current, { path: ["next"], message: "Choose a password you haven't used here" });
-
 const notConnected = (what: string) => toast.success(`${what} ready to save`, { description: "Saving is connected in the backend milestone." });
 
 export function MemberSettingsForms({ name, church, email }: { name: string; church: string; email: string }) {
   const [contactErrors, setContactErrors] = useState<Record<string, string | undefined>>({});
-  const [pwErrors, setPwErrors] = useState<Record<string, string | undefined>>({});
 
   return (
     <div className="flex flex-wrap items-start gap-4">
@@ -72,35 +63,8 @@ export function MemberSettingsForms({ name, church, email }: { name: string; chu
       </Panel>
 
       <Panel className="flex min-w-0 flex-[1_1_360px] flex-col gap-4 p-5">
-        <PanelHeader id="password-title" title="Password" description="At least 12 characters. A short phrase is easier to remember." />
-        <form
-          noValidate
-          className="flex flex-col gap-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const parsed = passwordSchema.safeParse(Object.fromEntries(new FormData(e.currentTarget)));
-            if (!parsed.success) {
-              const fe = z.flattenError(parsed.error).fieldErrors;
-              return setPwErrors({ current: fe.current?.[0], next: fe.next?.[0], confirm: fe.confirm?.[0] });
-            }
-            setPwErrors({});
-            e.currentTarget.reset();
-            notConnected("New password is");
-          }}
-        >
-          <Field id="pw-current" label="Current password" error={pwErrors.current}>
-            <input id="pw-current" name="current" type="password" autoComplete="current-password" className={inputClass} aria-invalid={!!pwErrors.current} />
-          </Field>
-          <Field id="pw-next" label="New password" error={pwErrors.next}>
-            <input id="pw-next" name="next" type="password" autoComplete="new-password" className={inputClass} aria-invalid={!!pwErrors.next} />
-          </Field>
-          <Field id="pw-confirm" label="Repeat new password" error={pwErrors.confirm}>
-            <input id="pw-confirm" name="confirm" type="password" autoComplete="new-password" className={inputClass} aria-invalid={!!pwErrors.confirm} />
-          </Field>
-          <button type="submit" className={buttonClass("primary", "self-start")}>
-            Change password
-          </button>
-        </form>
+        <PanelHeader id="password-title" title="Password" description="A short phrase is easier to remember than a jumble of symbols." />
+        <ChangePasswordForm />
       </Panel>
     </div>
   );

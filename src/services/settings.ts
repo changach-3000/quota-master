@@ -43,3 +43,13 @@ export async function listUsers(viewer: Viewer | null) {
     createdAt: r.created_at,
   }));
 }
+
+/** Parishioners who don't have a login yet, for the member invite picker. */
+export async function listUnlinkedParishioners(viewer: Viewer | null) {
+  assertStaff(viewer);
+  return prisma.$queryRaw<{ id: string; name: string; church: string }[]>`
+    SELECT pa.id, pa.display_name AS name, ch.name AS church
+      FROM parishioners pa JOIN churches ch ON ch.id = pa.church_id
+     WHERE pa.is_active AND NOT EXISTS (SELECT 1 FROM users u WHERE u.parishioner_id = pa.id)
+     ORDER BY pa.display_name`;
+}

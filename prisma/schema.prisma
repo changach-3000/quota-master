@@ -167,20 +167,66 @@ model quota_periods {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
 model users {
-  id                 String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email              String
-  password_hash      String?
-  role               user_role
-  parishioner_id     String?         @unique @db.Uuid
-  is_active          Boolean         @default(true)
-  failed_login_count Int             @default(0)
-  locked_until       DateTime?       @db.Timestamptz(6)
-  created_at         DateTime        @default(now()) @db.Timestamptz(6)
-  audit_log          audit_log[]
-  contributions      contributions[]
-  deposits           deposits[]
-  pledges            pledges[]
-  parishioners       parishioners?   @relation(fields: [parishioner_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id                                        String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                                     String
+  password_hash                             String?
+  role                                      user_role
+  parishioner_id                            String?         @unique @db.Uuid
+  is_active                                 Boolean         @default(true)
+  failed_login_count                        Int             @default(0)
+  locked_until                              DateTime?       @db.Timestamptz(6)
+  created_at                                DateTime        @default(now()) @db.Timestamptz(6)
+  password_changed_at                       DateTime?       @db.Timestamptz(6)
+  audit_log                                 audit_log[]
+  contributions                             contributions[]
+  deposits                                  deposits[]
+  pledges                                   pledges[]
+  sessions                                  sessions[]
+  user_tokens_user_tokens_created_byTousers user_tokens[]   @relation("user_tokens_created_byTousers")
+  user_tokens_user_tokens_user_idTousers    user_tokens[]   @relation("user_tokens_user_idTousers")
+  parishioners                              parishioners?   @relation(fields: [parishioner_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model sessions {
+  id           String   @id
+  user_id      String   @db.Uuid
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+  last_seen_at DateTime @default(now()) @db.Timestamptz(6)
+  expires_at   DateTime @db.Timestamptz(6)
+  ip_address   String?  @db.Inet
+  user_agent   String?
+  users        users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([expires_at], map: "sessions_expires_idx")
+  @@index([user_id], map: "sessions_user_idx")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model sign_in_attempts {
+  id           BigInt   @id @default(autoincrement())
+  email_lower  String
+  ip_address   String?  @db.Inet
+  succeeded    Boolean
+  attempted_at DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([email_lower, attempted_at], map: "sign_in_attempts_email_idx")
+  @@index([ip_address, attempted_at], map: "sign_in_attempts_ip_idx")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model user_tokens {
+  token_hash                          String             @id
+  user_id                             String             @db.Uuid
+  purpose                             user_token_purpose
+  created_by                          String?            @db.Uuid
+  created_at                          DateTime           @default(now()) @db.Timestamptz(6)
+  expires_at                          DateTime           @db.Timestamptz(6)
+  used_at                             DateTime?          @db.Timestamptz(6)
+  users_user_tokens_created_byTousers users?             @relation("user_tokens_created_byTousers", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users_user_tokens_user_idTousers    users              @relation("user_tokens_user_idTousers", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id], map: "user_tokens_user_idx")
 }
 
 enum contribution_kind {
@@ -198,4 +244,9 @@ enum user_role {
   treasurer
   auditor
   member
+}
+
+enum user_token_purpose {
+  invite
+  password_reset
 }

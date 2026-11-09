@@ -1,5 +1,6 @@
 "use client";
 
+import { ChangePasswordForm } from "@/components/app/change-password-form";
 import { Field, inputClass, selectClass } from "@/components/app/form";
 import { buttonClass } from "@/components/app/page";
 import { Panel, PanelHeader } from "@/components/dashboard/primitives";
@@ -10,8 +11,9 @@ import { formatDate, formatKsh } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { isoDate, kshAmount } from "@/schemas/money";
 import type { Role } from "@/services/viewer";
-import { CalendarPlus, Church, DatabaseBackup, KeyRound, Lock, Mail, Plus, ShieldCheck, Timer, UserPlus } from "lucide-react";
-import { useState } from "react";
+import { CalendarPlus, Church, Copy, DatabaseBackup, KeyRound, Lock, Mail, Plus, ShieldCheck, Timer, UserPlus } from "lucide-react";
+import { useActionState, useState } from "react";
+import { inviteAction, resetAccessAction, type InviteState } from "./actions";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -31,15 +33,18 @@ const ROLE_INFO: Record<Role, string> = {
 export function SettingsTabs({
   setup,
   users,
-  churches,
+  unlinked,
   canEdit,
   isAdmin,
+  viewerId,
 }: {
   setup: Setup;
   users: User[];
   churches: { id: string; name: string }[];
+  unlinked: { id: string; name: string; church: string }[];
   canEdit: boolean;
   isAdmin: boolean;
+  viewerId: string;
 }) {
   return (
     <Tabs defaultValue="parish" className="gap-5">
@@ -65,9 +70,13 @@ export function SettingsTabs({
         <PeriodsPanel periods={setup.periods} canEdit={canEdit} />
       </TabsContent>
       <TabsContent value="users">
-        <UsersPanel users={users} canInvite={isAdmin} churches={churches} />
+        <UsersPanel users={users} canInvite={isAdmin} unlinked={unlinked} viewerId={viewerId} />
       </TabsContent>
-      <TabsContent value="security">
+      <TabsContent value="security" className="flex flex-col gap-4">
+        <Panel className="flex max-w-xl flex-col gap-4 p-5">
+          <PanelHeader id="own-password" title="Your password" description="Changing it signs you out on every other device." />
+          <ChangePasswordForm />
+        </Panel>
         <SecurityPanel />
       </TabsContent>
     </Tabs>
@@ -282,26 +291,55 @@ function PeriodsPanel({ periods, canEdit }: { periods: Period[]; canEdit: boolea
   );
 }
 
-const inviteSchema = z
-  .object({ email: z.email("Enter a valid email address"), role: z.enum(["admin", "treasurer", "auditor", "member"]), parishioner: z.string().optional() })
-  .refine((v) => v.role !== "member" || !!v.parishioner?.trim(), { path: ["parishioner"], message: "Members must be linked to their parishioner record" });
-
-function UsersPanel({ users, canInvite }: { users: User[]; canInvite: boolean; churches: { id: string; name: string }[] }) {
+function UsersPanel({
+  users,
+  canInvite,
+  unlinked,
+  viewerId,
+}: {
+  users: User[];
+  canInvite: boolean;
+  unlinked: { id: string; name: string; church: string }[];
+  viewerId: string;
+}) {
   const [role, setRole] = useState<Role>("member");
-  const [errors, setErrors] = useState<Record<string, string | undefined>>({});
+  const [state, action, pending] = useActionState<InviteState, FormData>(inviteAction, {});
+  const [reset, setReset] = useState<{ email: string; link?: string; error?: string } | null>(null);
+
+  async function issueReset(u: User) {
+    const result = await resetAccessAction(u.id);
+    setReset({ email: u.email, ...result });
+  }
+
   return (
     <div className="flex flex-wrap items-start gap-4">
       <Panel className="min-w-0 flex-[2_1_520px] overflow-hidden">
         <div className="px-5 py-[18px]">
           <PanelHeader id="users-title" title="People who can sign in" description="Roles decide what each person can see and do." />
         </div>
-        <Table className="min-w-[560px] text-[13px]">
+        {reset && (
+          <div className="mx-5 mb-4">
+            {reset.link ? (
+              <OneTimeLink title={`Reset link for ${reset.email}`} path={reset.link} note="Valid for 24 hours. They have been signed out everywhere." />
+            ) : (
+              <p role="alert" className="text-[13px] font-medium text-negative">
+                {reset.error}
+              </p>
+            )}
+          </div>
+        )}
+        <Table className="min-w-[620px] text-[13px]">
           <TableHeader>
             <TableRow className="border-t border-border bg-background hover:bg-background">
               <TableHead className="pl-5 font-medium text-muted-foreground">Email</TableHead>
               <TableHead className="font-medium text-muted-foreground">Role</TableHead>
               <TableHead className="font-medium text-muted-foreground">Linked to</TableHead>
-              <TableHead className="pr-5 font-medium text-muted-foreground">Status</TableHead>
+              <TableHead className="font-medium text-muted-foreground">Status</TableHead>
+              {canInvite && (
+                <TableHead className="pr-5">
+                  <span className="sr-only">Actions</span>
+                </TableHead>
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -310,7 +348,7 @@ function UsersPanel({ users, canInvite }: { users: User[]; canInvite: boolean; c
                 <TableCell className="py-3 pl-5 font-medium">{u.email}</TableCell>
                 <TableCell className="py-3 capitalize">{u.role}</TableCell>
                 <TableCell className="py-3 text-slate-600">{u.parishioner ?? "—"}</TableCell>
-                <TableCell className="py-3 pr-5">
+                <TableCell className="py-3">
                   {!u.isActive ? (
                     <span className="text-muted-foreground">Disabled</span>
                   ) : u.invitePending ? (
@@ -323,6 +361,20 @@ function UsersPanel({ users, canInvite }: { users: User[]; canInvite: boolean; c
                     </span>
                   )}
                 </TableCell>
+                {canInvite && (
+                  <TableCell className="py-3 pr-5 text-right">
+                    {u.id !== viewerId && u.isActive && (
+                      <button
+                        type="button"
+                        onClick={() => issueReset(u)}
+                        className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-medium text-primary hover:bg-positive-soft"
+                      >
+                        <KeyRound className="size-3.5" aria-hidden />
+                        {u.invitePending ? "New invite link" : "Reset access"}
+                      </button>
+                    )}
+                  </TableCell>
+                )}
               </TableRow>
             ))}
           </TableBody>
@@ -333,23 +385,17 @@ function UsersPanel({ users, canInvite }: { users: User[]; canInvite: boolean; c
         {!canInvite ? (
           <p className="text-[13px] text-muted-foreground">Only an admin can invite people or change roles.</p>
         ) : (
-          <form
-            noValidate
-            className="flex flex-col gap-4"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const parsed = inviteSchema.safeParse(Object.fromEntries(new FormData(e.currentTarget)));
-              if (!parsed.success) {
-                const fe = z.flattenError(parsed.error).fieldErrors;
-                return setErrors({ email: fe.email?.[0], parishioner: fe.parishioner?.[0] });
-              }
-              if (users.some((u) => u.email.toLowerCase() === parsed.data.email.toLowerCase())) return setErrors({ email: "That email already has an account" });
-              setErrors({});
-              notConnected(`An invite for ${parsed.data.email}`);
-            }}
-          >
-            <Field id="invite-email" label="Email" error={errors.email}>
-              <input id="invite-email" name="email" type="email" className={inputClass} aria-invalid={!!errors.email} />
+          <form action={action} noValidate className="flex flex-col gap-4">
+            {state.error && (
+              <p role="alert" className="text-[13px] font-medium text-negative">
+                {state.error}
+              </p>
+            )}
+            {state.link && (
+              <OneTimeLink title={`Invite for ${state.email}`} path={state.link} note="Valid for 7 days and works once. Send it to them privately." />
+            )}
+            <Field id="invite-email" label="Email" error={state.fieldErrors?.email}>
+              <input id="invite-email" name="email" type="email" className={inputClass} aria-invalid={!!state.fieldErrors?.email} />
             </Field>
             <Field id="invite-role" label="Role" hint={ROLE_INFO[role]}>
               <select id="invite-role" name="role" value={role} onChange={(e) => setRole(e.target.value as Role)} className={selectClass}>
@@ -360,13 +406,22 @@ function UsersPanel({ users, canInvite }: { users: User[]; canInvite: boolean; c
               </select>
             </Field>
             {role === "member" && (
-              <Field id="invite-parishioner" label="Parishioner record" error={errors.parishioner} hint="Type their name exactly as on the parishioner list.">
-                <input id="invite-parishioner" name="parishioner" className={inputClass} aria-invalid={!!errors.parishioner} />
+              <Field id="invite-parishioner" label="Parishioner record" error={state.fieldErrors?.parishionerId} hint="Only people without a login are listed.">
+                <select id="invite-parishioner" name="parishionerId" defaultValue="" className={selectClass} aria-invalid={!!state.fieldErrors?.parishionerId}>
+                  <option value="" disabled>
+                    Choose a parishioner
+                  </option>
+                  {unlinked.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} · {p.church}
+                    </option>
+                  ))}
+                </select>
               </Field>
             )}
-            <button type="submit" className={buttonClass("primary")}>
+            <button type="submit" disabled={pending} className={buttonClass("primary")}>
               <UserPlus className="size-4" aria-hidden />
-              Send invite
+              Create invite link
             </button>
           </form>
         )}
@@ -375,10 +430,39 @@ function UsersPanel({ users, canInvite }: { users: User[]; canInvite: boolean; c
   );
 }
 
+/** Shows a one-time link once, with copy. It can't be shown again later: only its hash is stored. */
+function OneTimeLink({ title, path, note }: { title: string; path: string; note: string }) {
+  const [copied, setCopied] = useState(false);
+  const url = typeof window === "undefined" ? path : `${window.location.origin}${path}`;
+  return (
+    <div className="flex flex-col gap-2 rounded-[10px] border border-green-200 bg-positive-soft p-3">
+      <span className="text-[13px] font-medium text-positive-text">{title}</span>
+      <div className="flex gap-2">
+        <label htmlFor={`link-${path.slice(-8)}`} className="sr-only">
+          {title}
+        </label>
+        <input id={`link-${path.slice(-8)}`} readOnly value={url} onFocus={(e) => e.currentTarget.select()} className={cn(inputClass, "h-10 font-mono text-xs")} />
+        <button
+          type="button"
+          onClick={async () => {
+            await navigator.clipboard.writeText(url);
+            setCopied(true);
+          }}
+          className={buttonClass("secondary", "shrink-0")}
+        >
+          <Copy className="size-4" aria-hidden />
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+      <span className="text-xs text-slate-600">{note} It won&apos;t be shown again.</span>
+    </div>
+  );
+}
+
 function SecurityPanel() {
   const items = [
-    { icon: KeyRound, title: "Passwords", body: "Hashed with Argon2id. At least 12 characters; common and breached passwords are refused.", status: "Planned", ready: false },
-    { icon: Timer, title: "Lockout", body: "Repeated wrong passwords lock the account for 15 minutes and are rate-limited per address.", status: "Planned", ready: false },
+    { icon: KeyRound, title: "Passwords", body: "Hashed with Argon2id. At least 12 characters; the most common choices are refused.", status: "On", ready: true },
+    { icon: Timer, title: "Lockout", body: "Five wrong passwords lock sign-in for that email for 15 minutes; repeated failures from one network are rate-limited.", status: "On", ready: true },
     { icon: ShieldCheck, title: "Two-step sign-in", body: "Required for admins and treasurers before real parish money is recorded.", status: "Planned", ready: false },
     { icon: Lock, title: "Append-only ledger", body: "Payments and the audit log can't be edited or deleted, enforced by the database itself.", status: "On", ready: true },
     { icon: DatabaseBackup, title: "Backups", body: "Encrypted nightly backups with a tested restore. Not approved for real money until a restore drill passes.", status: "Planned", ready: false },
