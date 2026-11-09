@@ -109,10 +109,10 @@ export async function getMemberDashboard(viewer: Viewer | null, asOf: string): P
 }
 
 /** Name and church for the viewer's own profile chip. */
-export async function getMyProfile(viewer: Viewer | null): Promise<{ name: string; church: string; email: string } | null> {
+export async function getMyProfile(viewer: Viewer | null): Promise<{ name: string; church: string; email: string; phone: string | null } | null> {
   const parishionerId = ownParishionerId(viewer);
-  const [me] = await prisma.$queryRaw<{ name: string; church: string; email: string }[]>`
-    SELECT pa.display_name AS name, ch.name AS church, u.email
+  const [me] = await prisma.$queryRaw<{ name: string; church: string; email: string; phone: string | null }[]>`
+    SELECT pa.display_name AS name, ch.name AS church, u.email, pa.phone
       FROM parishioners pa
       JOIN churches ch ON ch.id = pa.church_id
       JOIN users u ON u.id = ${viewer!.userId}::uuid AND u.parishioner_id = pa.id

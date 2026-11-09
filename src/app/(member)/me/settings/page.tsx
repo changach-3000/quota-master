@@ -21,5 +21,5 @@ export default function MemberSettingsPage() {
 async function Loader() {
   const viewer = await requireMemberViewer();
   const me = await getMyProfile(viewer);
-  return <MemberSettingsForms name={me?.name ?? ""} church={me?.church ?? ""} email={me?.email ?? ""} />;
+  return <MemberSettingsForms name={me?.name ?? ""} church={me?.church ?? ""} email={me?.email ?? ""} phone={me?.phone ?? null} />;
 }

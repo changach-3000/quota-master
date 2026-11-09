@@ -9,19 +9,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDate, formatKsh } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { isoDate, kshAmount } from "@/schemas/money";
+import { kshAmount } from "@/schemas/money";
+import { churchSchema, periodSchema } from "@/schemas/settings";
 import type { Role } from "@/services/viewer";
-import { CalendarPlus, Church, Copy, DatabaseBackup, KeyRound, Lock, Mail, Plus, ShieldCheck, Timer, UserPlus } from "lucide-react";
+import { CalendarPlus, Church, Copy, DatabaseBackup, KeyRound, LoaderCircle, Lock, Mail, Plus, ShieldCheck, Timer, UserPlus } from "lucide-react";
 import { useActionState, useState } from "react";
-import { inviteAction, resetAccessAction, type InviteState } from "./actions";
+import { addChurchAction, addPeriodAction, inviteAction, resetAccessAction, saveQuotasAction, type InviteState } from "./actions";
 import { toast } from "sonner";
 import { z } from "zod";
 
 type Period = { id: string; name: string; startsOn: string; endsOn: string };
 type Setup = { periods: Period[]; churches: { id: string; name: string; members: number; quotas: Record<string, number> }[] };
 type User = { id: string; email: string; role: Role; isActive: boolean; parishioner: string | null; invitePending: boolean; createdAt: string };
-
-const notConnected = (what: string) => toast.success(`${what} is ready to save`, { description: "Saving is connected in the backend milestone." });
 
 const ROLE_INFO: Record<Role, string> = {
   admin: "Everything, including users and settings",
@@ -90,14 +89,33 @@ function QuotasPanel({ setup, canEdit }: { setup: Setup; canEdit: boolean }) {
   const period = setup.periods.find((p) => p.id === periodId);
   const total = setup.churches.reduce((s, c) => s + (c.quotas[periodId] ?? 0), 0);
 
-  function save() {
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
     const next: Record<string, string> = {};
     for (const [id, v] of Object.entries(draft)) {
       const r = kshAmount.safeParse(v);
       if (!r.success) next[id] = r.error.issues[0]?.message ?? "Invalid amount";
     }
     setErrors(next);
-    if (Object.keys(next).length === 0) notConnected(`${period?.name} quotas`);
+    if (Object.keys(next).length) return;
+    if (Object.keys(draft).length === 0) return toast.info("No quotas changed");
+    setSaving(true);
+    try {
+      const result = await saveQuotasAction({ periodId, quotas: Object.entries(draft).map(([churchId, amount]) => ({ churchId, amount })) });
+      if (result.ok) {
+        setDraft({});
+        toast.success(result.changed ? `${period?.name} quotas saved` : "No quotas changed", {
+          description: result.changed ? `${result.changed} church${result.changed === 1 ? "" : "es"} updated. Each change is in the audit log.` : undefined,
+        });
+      } else {
+        toast.error("Quotas not saved", { description: result.message ?? Object.values(result.fieldErrors ?? {}).find(Boolean) });
+      }
+    } catch {
+      toast.error("Couldn't reach the server", { description: "Nothing was saved. Try again." });
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -111,7 +129,14 @@ function QuotasPanel({ setup, canEdit }: { setup: Setup; canEdit: boolean }) {
             <label htmlFor="quota-period" className="sr-only">
               Period
             </label>
-            <select id="quota-period" value={periodId} onChange={(e) => setPeriodId(e.target.value)} className={cn(selectClass, "h-10 w-auto")}>
+            <select
+              id="quota-period"
+              value={periodId}
+              onChange={(e) => {
+                setPeriodId(e.target.value);
+                setDraft({});
+                setErrors({});
+              }} className={cn(selectClass, "h-10 w-auto")}>
               {setup.periods.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
@@ -170,8 +195,9 @@ function QuotasPanel({ setup, canEdit }: { setup: Setup; canEdit: boolean }) {
           Parish total <strong>{formatKsh(total)}</strong>
         </span>
         {canEdit && (
-          <button type="button" onClick={save} className={buttonClass("primary")}>
-            Save quotas
+          <button type="button" onClick={save} disabled={saving} className={buttonClass("primary")}>
+            {saving && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
+            {saving ? "Saving…" : "Save quotas"}
           </button>
         )}
       </div>
@@ -192,13 +218,16 @@ function AddChurchButton() {
         <form
           noValidate
           className="flex flex-col gap-4"
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault();
             const name = String(new FormData(e.currentTarget).get("name") ?? "").trim();
-            if (name.length < 2) return setError("Enter the church's name");
+            const parsed = churchSchema.safeParse({ name });
+            if (!parsed.success) return setError(parsed.error.issues[0]?.message);
+            const result = await addChurchAction({ name });
+            if (!result.ok) return setError(result.fieldErrors?.name ?? result.message ?? "Not saved");
             setError(undefined);
             setOpen(false);
-            notConnected(name);
+            toast.success(`${name} added`, { description: "Set its quota for each period below." });
           }}
         >
           <DialogHeader>
@@ -219,10 +248,6 @@ function AddChurchButton() {
     </Dialog>
   );
 }
-
-const periodSchema = z
-  .object({ name: z.string().trim().min(2, "Give the period a name, like 2027").max(40), startsOn: isoDate, endsOn: isoDate })
-  .refine((v) => v.endsOn >= v.startsOn, { path: ["endsOn"], message: "End must be on or after the start" });
 
 function PeriodsPanel({ periods, canEdit }: { periods: Period[]; canEdit: boolean }) {
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
@@ -257,9 +282,10 @@ function PeriodsPanel({ periods, canEdit }: { periods: Period[]; canEdit: boolea
           <form
             noValidate
             className="flex flex-col gap-4"
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
-              const parsed = periodSchema.safeParse(Object.fromEntries(new FormData(e.currentTarget)));
+              const form = e.currentTarget;
+              const parsed = periodSchema.safeParse(Object.fromEntries(new FormData(form)));
               if (!parsed.success) {
                 const fe = z.flattenError(parsed.error).fieldErrors;
                 return setErrors({ name: fe.name?.[0], startsOn: fe.startsOn?.[0], endsOn: fe.endsOn?.[0] });
@@ -267,8 +293,11 @@ function PeriodsPanel({ periods, canEdit }: { periods: Period[]; canEdit: boolea
               const v = parsed.data;
               const clash = periods.find((p) => v.startsOn <= p.endsOn && p.startsOn <= v.endsOn);
               if (clash) return setErrors({ startsOn: `Overlaps the ${clash.name} period (${formatDate(clash.startsOn)} – ${formatDate(clash.endsOn)})` });
+              const result = await addPeriodAction({ name: v.name, startsOn: v.startsOn, endsOn: v.endsOn });
+              if (!result.ok) return setErrors(result.fieldErrors ?? { name: result.message });
               setErrors({});
-              notConnected(`The ${v.name} period`);
+              form.reset();
+              toast.success(`The ${v.name} period was added`, { description: "Set each church's quota for it in Churches & quotas." });
             }}
           >
             <Field id="period-name" label="Name" error={errors.name}>

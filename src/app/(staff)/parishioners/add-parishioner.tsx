@@ -7,35 +7,41 @@ import { UserPlus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
-
-const schema = z.object({
-  displayName: z.string().trim().min(2, "Enter the parishioner's name").max(120),
-  churchId: z.uuid("Choose their church"),
-  household: z.string().trim().max(80).optional(),
-  phone: z
-    .string()
-    .trim()
-    .regex(/^(\+?254|0)?[17]\d{8}$/, "Use a Kenyan number like 0712 345 678")
-    .optional()
-    .or(z.literal("")),
-});
+import { parishionerSchema } from "@/schemas/settings";
+import { addParishionerAction } from "./actions";
 
 export function AddParishionerButton({ churches }: { churches: { id: string; name: string }[] }) {
   const [open, setOpen] = useState(false);
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
 
-  function submit(e: React.FormEvent<HTMLFormElement>) {
+  const [pending, setPending] = useState(false);
+
+  async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const data = Object.fromEntries(new FormData(e.currentTarget));
-    const parsed = schema.safeParse({ ...data, phone: String(data.phone ?? "").replace(/\s/g, "") });
+    if (pending) return;
+    const data = Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>;
+    const input = { displayName: data.displayName, churchId: data.churchId, household: data.household || undefined, phone: data.phone };
+    const parsed = parishionerSchema.safeParse(input);
     if (!parsed.success) {
       const fe = z.flattenError(parsed.error).fieldErrors;
       setErrors({ displayName: fe.displayName?.[0], churchId: fe.churchId?.[0], phone: fe.phone?.[0] });
       return;
     }
-    setErrors({});
-    setOpen(false);
-    toast.success(`${parsed.data.displayName} is ready to add`, { description: "Saving is connected in the backend milestone." });
+    setPending(true);
+    try {
+      const result = await addParishionerAction(input);
+      if (!result.ok) {
+        setErrors(result.fieldErrors ?? { displayName: result.message });
+        return;
+      }
+      setErrors({});
+      setOpen(false);
+      toast.success(`${result.name} added`, { description: "Set their pledge from the Pledges page." });
+    } catch {
+      setErrors({ displayName: "Couldn't reach the server. Nothing was saved; try again." });
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
@@ -73,8 +79,8 @@ export function AddParishionerButton({ churches }: { churches: { id: string; nam
           </Field>
           <DialogFooter>
             <DialogClose className={buttonClass("secondary")}>Cancel</DialogClose>
-            <button type="submit" className={buttonClass("primary")}>
-              Add parishioner
+            <button type="submit" disabled={pending} className={buttonClass("primary")}>
+              {pending ? "Adding…" : "Add parishioner"}
             </button>
           </DialogFooter>
         </form>

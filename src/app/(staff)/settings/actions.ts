@@ -2,7 +2,9 @@
 
 import { Prisma } from "@/generated/prisma/client";
 import { getViewer, requestMeta } from "@/lib/session";
+import type { ChurchInput, PeriodInput, QuotasInput } from "@/schemas/settings";
 import { inviteUser, issuePasswordReset } from "@/services/auth";
+import { addChurch, addPeriod, saveQuotas, type WriteResult } from "@/services/settings-writes";
 import { ForbiddenError } from "@/services/viewer";
 import { refresh } from "next/cache";
 import { z } from "zod";
@@ -54,4 +56,31 @@ export async function resetAccessAction(userId: string): Promise<ResetState> {
     if (err instanceof ForbiddenError) return { error: err.message };
     throw err;
   }
+}
+
+// --- Parish set-up -------------------------------------------------------
+
+type SetupResult<T = object> = WriteResult<T>;
+
+async function guarded<T>(run: () => Promise<SetupResult<T>>): Promise<SetupResult<T>> {
+  try {
+    const result = await run();
+    if (result.ok) refresh();
+    return result;
+  } catch (err) {
+    if (err instanceof ForbiddenError) return { ok: false, message: err.message };
+    throw err;
+  }
+}
+
+export async function saveQuotasAction(input: QuotasInput) {
+  return guarded(async () => saveQuotas(await getViewer(), input, await requestMeta()));
+}
+
+export async function addPeriodAction(input: PeriodInput) {
+  return guarded(async () => addPeriod(await getViewer(), input, await requestMeta()));
+}
+
+export async function addChurchAction(input: ChurchInput) {
+  return guarded(async () => addChurch(await getViewer(), input, await requestMeta()));
 }

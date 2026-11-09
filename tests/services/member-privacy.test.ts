@@ -86,7 +86,7 @@ describe("member dashboard privacy", () => {
   });
 
   it("profile returns the viewer's own name only", async () => {
-    expect(await getMyProfile(memberA)).toEqual({ name: "Member Alpha", church: "Privacy Test Church", email: "alpha@privacy.test" });
+    expect(await getMyProfile(memberA)).toEqual({ name: "Member Alpha", church: "Privacy Test Church", email: "alpha@privacy.test", phone: null });
   });
 
   it("refuses a viewer with no parishioner, and no viewer at all", async () => {

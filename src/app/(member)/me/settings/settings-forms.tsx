@@ -4,27 +4,40 @@ import { ChangePasswordForm } from "@/components/app/change-password-form";
 import { Field, inputClass } from "@/components/app/form";
 import { buttonClass } from "@/components/app/page";
 import { Panel, PanelHeader } from "@/components/dashboard/primitives";
+import { kenyanPhone } from "@/schemas/settings";
+import { LoaderCircle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { z } from "zod";
+import { updateMyPhoneAction } from "./actions";
 
-const contactSchema = z.object({
-  email: z.email("Enter a valid email address"),
-  phone: z
-    .string()
-    .trim()
-    .regex(/^((\+?254|0)[17]\d{8})?$/, "Use a Kenyan number like 0712 345 678"),
-});
+export function MemberSettingsForms({ name, church, email, phone }: { name: string; church: string; email: string; phone: string | null }) {
+  const [value, setValue] = useState(phone ?? "");
+  const [error, setError] = useState<string>();
+  const [pending, setPending] = useState(false);
 
-const notConnected = (what: string) => toast.success(`${what} ready to save`, { description: "Saving is connected in the backend milestone." });
-
-export function MemberSettingsForms({ name, church, email }: { name: string; church: string; email: string }) {
-  const [contactErrors, setContactErrors] = useState<Record<string, string | undefined>>({});
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    if (pending) return;
+    const parsed = kenyanPhone.safeParse(value);
+    if (!parsed.success) return setError(parsed.error.issues[0]?.message);
+    setPending(true);
+    try {
+      const result = await updateMyPhoneAction(value);
+      if (!result.ok) return setError(result.fieldErrors?.phone ?? result.message);
+      setError(undefined);
+      setValue(result.phone ?? "");
+      toast.success(result.phone ? "Phone number saved" : "Phone number removed");
+    } catch {
+      setError("Couldn't reach the server. Nothing was saved; try again.");
+    } finally {
+      setPending(false);
+    }
+  }
 
   return (
     <div className="flex flex-wrap items-start gap-4">
       <Panel className="flex min-w-0 flex-[1_1_360px] flex-col gap-4 p-5">
-        <PanelHeader id="profile-title" title="Profile" description="Your name and church are managed by the treasurer." />
+        <PanelHeader id="profile-title" title="Profile" description="Your name, church and sign-in email are managed by the parish office." />
         <dl className="grid grid-cols-2 gap-3 text-[13px]">
           <div className="rounded-[10px] bg-muted p-3">
             <dt className="text-muted-foreground">Name</dt>
@@ -34,30 +47,28 @@ export function MemberSettingsForms({ name, church, email }: { name: string; chu
             <dt className="text-muted-foreground">Church</dt>
             <dd className="font-medium">{church}</dd>
           </div>
+          <div className="col-span-2 rounded-[10px] bg-muted p-3">
+            <dt className="text-muted-foreground">Sign-in email</dt>
+            <dd className="font-medium break-all">{email}</dd>
+          </div>
         </dl>
-        <form
-          noValidate
-          className="flex flex-col gap-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const raw = Object.fromEntries(new FormData(e.currentTarget));
-            const parsed = contactSchema.safeParse({ ...raw, phone: String(raw.phone ?? "").replace(/\s/g, "") });
-            if (!parsed.success) {
-              const fe = z.flattenError(parsed.error).fieldErrors;
-              return setContactErrors({ email: fe.email?.[0], phone: fe.phone?.[0] });
-            }
-            setContactErrors({});
-            notConnected("Contact details are");
-          }}
-        >
-          <Field id="me-email" label="Email" error={contactErrors.email} hint="Used to sign in.">
-            <input id="me-email" name="email" type="email" defaultValue={email} autoComplete="email" className={inputClass} aria-invalid={!!contactErrors.email} />
+        <form noValidate onSubmit={save} className="flex flex-col gap-4">
+          <Field id="me-phone" label="Phone" optional error={error} hint="The number you send M-Pesa from helps the treasurer match your payments.">
+            <input
+              id="me-phone"
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              placeholder="0712 345 678"
+              className={inputClass}
+              aria-invalid={!!error}
+            />
           </Field>
-          <Field id="me-phone" label="Phone" optional error={contactErrors.phone} hint="The number you send M-Pesa from helps the treasurer match payments.">
-            <input id="me-phone" name="phone" type="tel" inputMode="tel" autoComplete="tel" className={inputClass} aria-invalid={!!contactErrors.phone} />
-          </Field>
-          <button type="submit" className={buttonClass("primary", "self-start")}>
-            Save details
+          <button type="submit" disabled={pending} className={buttonClass("primary", "self-start")}>
+            {pending && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
+            {pending ? "Saving…" : "Save phone"}
           </button>
         </form>
       </Panel>
