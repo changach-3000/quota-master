@@ -42,7 +42,7 @@ async function Deposits() {
       </div>
 
       {canWrite(viewer) ? (
-        <DepositBuilder payments={waiting} today={todayInNairobi()} />
+        <DepositBuilder key={waiting.map((p) => p.id).join(",")} payments={waiting} today={todayInNairobi()} />
       ) : (
         <Panel className="p-5 text-[13px] text-muted-foreground">
           {waiting.length} payments ({formatKsh(waitingTotal)}) are waiting to be deposited. Auditors can view deposits but not record them.

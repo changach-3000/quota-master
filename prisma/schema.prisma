@@ -88,16 +88,17 @@ model deposit_items {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model deposits {
-  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  deposited_on  DateTime        @db.Date
-  amount_cents  BigInt
-  bank_account  String          @default("NCBA")
-  bank_ref      String?
-  recorded_by   String?         @db.Uuid
-  recorded_at   DateTime        @default(now()) @db.Timestamptz(6)
-  notes         String?
-  deposit_items deposit_items[]
-  users         users?          @relation(fields: [recorded_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  deposited_on    DateTime        @db.Date
+  amount_cents    BigInt
+  bank_account    String          @default("NCBA")
+  bank_ref        String?
+  recorded_by     String?         @db.Uuid
+  recorded_at     DateTime        @default(now()) @db.Timestamptz(6)
+  notes           String?
+  idempotency_key String?         @unique
+  deposit_items   deposit_items[]
+  users           users?          @relation(fields: [recorded_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model households {

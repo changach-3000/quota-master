@@ -26,7 +26,7 @@ export type ParishOverview = {
   pledged: number;
   outstanding: number;
   credits: number;
-  undeposited: { total: number; count: number; mpesa: { total: number; count: number }; cash: { total: number; count: number } };
+  undeposited: { total: number; count: number; oldestOn: string | null; mpesa: { total: number; count: number }; cash: { total: number; count: number } };
   reversalsThisMonth: { total: number; count: number };
   monthly: { current: number[]; previous: number[] | null };
   churches: { name: string; quota: number; collected: number; pledged: number }[];
@@ -69,8 +69,8 @@ export async function getParishOverview(viewer: Viewer | null, asOf: string): Pr
      WHERE period_id = ${period.id}::uuid`;
 
   // Cash on hand: payments not yet in a deposit and not reversed.
-  const undepositedRows = await prisma.$queryRaw<{ method: "mpesa" | "cash"; n: number; total: bigint }[]>`
-    SELECT c.method, COUNT(*)::int AS n, SUM(c.amount_cents)::bigint AS total
+  const undepositedRows = await prisma.$queryRaw<{ method: "mpesa" | "cash"; n: number; total: bigint; oldest: string }[]>`
+    SELECT c.method, COUNT(*)::int AS n, SUM(c.amount_cents)::bigint AS total, to_char(min(c.received_on), 'YYYY-MM-DD') AS oldest
       FROM contributions c
      WHERE c.kind = 'payment'
        AND NOT EXISTS (SELECT 1 FROM deposit_items di WHERE di.contribution_id = c.id)
@@ -153,7 +153,13 @@ export async function getParishOverview(viewer: Viewer | null, asOf: string): Pr
     pledged: Number(balances.pledged),
     outstanding: Number(balances.outstanding),
     credits: Number(balances.credits),
-    undeposited: { total: mpesa.total + cash.total, count: mpesa.count + cash.count, mpesa, cash },
+    undeposited: {
+      total: mpesa.total + cash.total,
+      count: mpesa.count + cash.count,
+      oldestOn: undepositedRows.map((r) => r.oldest).sort()[0] ?? null,
+      mpesa,
+      cash,
+    },
     reversalsThisMonth: { total: Number(reversals.total), count: reversals.n },
     monthly: { current: monthlyCurrent, previous: monthlyPrevious },
     churches: churchRows.map((r) => ({

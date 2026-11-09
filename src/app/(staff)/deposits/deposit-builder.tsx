@@ -9,9 +9,11 @@ import { formatDate, formatKsh } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { kshAmount } from "@/schemas/money";
 import type { UndepositedPayment } from "@/services/deposits";
-import { CircleCheck, Landmark, TriangleAlert } from "lucide-react";
+import { CircleCheck, Landmark, LoaderCircle, TriangleAlert } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { recordDepositAction } from "./actions";
 
 const METHOD = { mpesa: "M-Pesa", cash: "Cash" } as const;
 
@@ -22,6 +24,10 @@ export function DepositBuilder({ payments, today }: { payments: UndepositedPayme
   const [bankRef, setBankRef] = useState("");
   const [slipAmount, setSlipAmount] = useState("");
   const [errors, setErrors] = useState<{ slip?: string; date?: string; items?: string }>({});
+  const [pending, setPending] = useState(false);
+  // One key per form: a retry or double-click can't bank the same payments twice.
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
+  const router = useRouter();
 
   const visible = method === "all" ? payments : payments.filter((p) => p.method === method);
   const total = useMemo(() => payments.filter((p) => selected.has(p.id)).reduce((s, p) => s + p.amount, 0), [payments, selected]);
@@ -50,8 +56,9 @@ export function DepositBuilder({ payments, today }: { payments: UndepositedPayme
     });
   }
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (pending) return;
     const next: typeof errors = {};
     if (selected.size === 0) next.items = "Select the payments that went into this deposit";
     if (!slip.success) next.slip = slip.error.issues[0]?.message ?? "Enter the amount on the deposit slip";
@@ -59,9 +66,40 @@ export function DepositBuilder({ payments, today }: { payments: UndepositedPayme
     if (!depositedOn || depositedOn > today) next.date = "Enter the date the money was banked (not in the future)";
     setErrors(next);
     if (Object.keys(next).length) return;
-    toast.success(`Deposit of ${formatKsh(total)} is ready to save`, {
-      description: `${selected.size} payments match the slip. Saving is connected in the backend milestone.`,
-    });
+
+    setPending(true);
+    try {
+      // The server totals the payments itself; the slip amount is only checked against it.
+      const result = await recordDepositAction({
+        contributionIds: payments.filter((p) => selected.has(p.id)).map((p) => p.id),
+        depositedOn,
+        slipAmount,
+        bankRef: bankRef || undefined,
+        idempotencyKey,
+      });
+      if (result.ok) {
+        toast.success(`Deposit of ${formatKsh(result.amount)} recorded`, {
+          description: `${result.items} payment${result.items === 1 ? "" : "s"} marked as banked on ${formatDate(depositedOn)}.`,
+        });
+        router.refresh();
+        return;
+      }
+      const err = result.error;
+      if (err.code === "invalid") {
+        setErrors({ items: err.fieldErrors.contributionIds, slip: err.fieldErrors.slipAmount, date: err.fieldErrors.depositedOn });
+      } else if (err.code === "mismatch") {
+        setErrors({ slip: `The selected payments add up to ${formatKsh(err.selectedTotal)}. Check the slip.` });
+      } else if (err.code === "future_date" || err.code === "before_received") {
+        setErrors({ date: err.message });
+      } else {
+        setErrors({ items: err.message });
+        if (err.code === "already_deposited" || err.code === "not_depositable") router.refresh();
+      }
+    } catch {
+      toast.error("Couldn't reach the server", { description: "Nothing was recorded. It is safe to press Record deposit again." });
+    } finally {
+      setPending(false);
+    }
   }
 
   if (payments.length === 0) {
@@ -179,9 +217,9 @@ export function DepositBuilder({ payments, today }: { payments: UndepositedPayme
         <Field id="bank-ref" label="Bank reference" optional hint="From the NCBA slip or app.">
           <input id="bank-ref" value={bankRef} onChange={(e) => setBankRef(e.target.value)} className={cn(inputClass, "font-mono")} />
         </Field>
-        <button type="submit" className={buttonClass("primary", "w-full")}>
-          <Landmark className="size-4" aria-hidden />
-          Record deposit
+        <button type="submit" disabled={pending} className={buttonClass("primary", "w-full")}>
+          {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : <Landmark className="size-4" aria-hidden />}
+          {pending ? "Recording…" : "Record deposit"}
         </button>
       </Panel>
     </form>

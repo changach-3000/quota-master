@@ -118,7 +118,7 @@ async function Overview() {
               {data.undeposited.count === 0
                 ? "Everything is deposited"
                 : `Pending · ${data.undeposited.count} payment${data.undeposited.count === 1 ? "" : "s"}${
-                    data.lastDepositOn ? ` since ${formatDate(data.lastDepositOn)}` : ""
+                    data.undeposited.oldestOn ? `, oldest from ${formatDate(data.undeposited.oldestOn)}` : ""
                   }`}
             </span>
             {canRecord && data.undeposited.count > 0 && (
