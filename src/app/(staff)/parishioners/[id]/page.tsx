@@ -54,6 +54,7 @@ async function Detail({ params }: { params: PageProps<"/parishioners/[id]">["par
                 <SetPledgeButton
                   parishioner={{ id: p.id, name: p.name }}
                   period={p.period.name}
+                  periodId={p.period.id}
                   current={current ? { amount: current.amount, version: current.version } : null}
                   variant="secondary"
                 />

@@ -6,19 +6,23 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, Di
 import { formatKsh } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { isoDate, kshAmount } from "@/schemas/money";
-import { Target } from "lucide-react";
+import { LoaderCircle, Target } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { setPledgeAction } from "./actions";
 
 /** Setting a pledge never edits the old one: it adds version N+1 from an effective date. */
 export function SetPledgeButton({
   parishioner,
   period,
+  periodId,
   current,
   variant = "ghost",
 }: {
   parishioner: { id: string; name: string };
   period: string;
+  periodId: string;
   current: { amount: number; version: number } | null;
   variant?: "ghost" | "secondary";
 }) {
@@ -26,20 +30,46 @@ export function SetPledgeButton({
   const [amount, setAmount] = useState("");
   const [from, setFrom] = useState(() => new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Nairobi" }).format(new Date()));
   const [errors, setErrors] = useState<{ amount?: string; from?: string }>({});
+  const [pending, setPending] = useState(false);
+  // Kept across a failed submit so a retry can't create two versions.
+  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
+  const router = useRouter();
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (pending) return;
     const a = kshAmount.safeParse(amount);
     const d = isoDate.safeParse(from);
     const next = { amount: a.success ? undefined : a.error.issues[0]?.message, from: d.success ? undefined : d.error.issues[0]?.message };
     if (a.success && current && a.data === current.amount) next.amount = "That is the same as the current pledge";
     setErrors(next);
     if (next.amount || next.from) return;
-    setOpen(false);
-    setAmount("");
-    toast.success(`${parishioner.name}: pledge v${(current?.version ?? 0) + 1} of ${formatKsh(a.data!)} is ready to save`, {
-      description: "Saving is connected in the backend milestone.",
-    });
+
+    setPending(true);
+    try {
+      const result = await setPledgeAction({ parishionerId: parishioner.id, periodId, amount, effectiveFrom: from, idempotencyKey });
+      if (result.ok) {
+        setOpen(false);
+        setAmount("");
+        setIdempotencyKey(crypto.randomUUID());
+        toast.success(`${parishioner.name}: ${period} pledge is now ${formatKsh(result.amount)}`, {
+          description:
+            result.credit > 0
+              ? `Version ${result.version}. They have already given ${formatKsh(result.credit)} more than this.`
+              : `Version ${result.version}. ${formatKsh(result.outstanding)} still to give.`,
+        });
+        router.refresh();
+        return;
+      }
+      const err = result.error;
+      if (err.code === "invalid") setErrors({ amount: err.fieldErrors.amount, from: err.fieldErrors.effectiveFrom });
+      else if (err.code === "unchanged") setErrors({ amount: err.message });
+      else setErrors({ from: err.message });
+    } catch {
+      setErrors({ amount: "Couldn't reach the server. Nothing was saved; it is safe to try again." });
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
@@ -82,8 +112,9 @@ export function SetPledgeButton({
           </Field>
           <DialogFooter>
             <DialogClose className={buttonClass("secondary")}>Cancel</DialogClose>
-            <button type="submit" className={buttonClass("primary")}>
-              Save pledge
+            <button type="submit" disabled={pending} className={buttonClass("primary")}>
+              {pending && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
+              {pending ? "Saving…" : "Save pledge"}
             </button>
           </DialogFooter>
         </form>

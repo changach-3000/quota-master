@@ -132,21 +132,22 @@ model parishioners {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model pledges {
-  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  parishioner_id String        @db.Uuid
-  period_id      String        @db.Uuid
-  amount_cents   BigInt
-  version        Int
-  effective_from DateTime      @db.Date
-  is_current     Boolean       @default(true)
-  supersedes_id  String?       @db.Uuid
-  created_by     String?       @db.Uuid
-  created_at     DateTime      @default(now()) @db.Timestamptz(6)
-  users          users?        @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  parishioners   parishioners  @relation(fields: [parishioner_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  quota_periods  quota_periods @relation(fields: [period_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  pledges        pledges?      @relation("pledgesTopledges", fields: [supersedes_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  other_pledges  pledges[]     @relation("pledgesTopledges")
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  parishioner_id  String        @db.Uuid
+  period_id       String        @db.Uuid
+  amount_cents    BigInt
+  version         Int
+  effective_from  DateTime      @db.Date
+  is_current      Boolean       @default(true)
+  supersedes_id   String?       @db.Uuid
+  created_by      String?       @db.Uuid
+  created_at      DateTime      @default(now()) @db.Timestamptz(6)
+  idempotency_key String?       @unique
+  users           users?        @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  parishioners    parishioners  @relation(fields: [parishioner_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  quota_periods   quota_periods @relation(fields: [period_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  pledges         pledges?      @relation("pledgesTopledges", fields: [supersedes_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_pledges   pledges[]     @relation("pledgesTopledges")
 
   @@unique([parishioner_id, period_id], map: "pledges_one_current_key", where: raw("is_current"))
   @@unique([parishioner_id, period_id, version])

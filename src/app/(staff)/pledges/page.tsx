@@ -150,6 +150,7 @@ async function Pledges({ searchParams }: { searchParams: PageProps<"/pledges">["
                         <SetPledgeButton
                           parishioner={{ id: r.id, name: r.name }}
                           period={period.name}
+                          periodId={period.id}
                           current={r.pledged ? { amount: r.pledged, version: r.pledgeVersion ?? 1 } : null}
                         />
                       </TableCell>
