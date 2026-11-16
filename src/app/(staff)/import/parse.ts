@@ -104,7 +104,7 @@ export function dryRun(rows: string[][], mapping: Mapping, knownNames: Set<strin
 
     const name = cell(r, "name");
     if (!name) errors.push("No parishioner name");
-    else if (!knownNames.has(name.toLowerCase())) warnings.push(`“${name}” isn't on the parishioner list yet; it will be added`);
+    else if (!knownNames.has(name.toLowerCase())) errors.push(`“${name}” isn't on the parishioner list. Add them on the Parishioners page first`);
 
     const rawAmount = cell(r, "amount").replace(/ksh|,|\s/gi, "");
     const amountCents = /^\d+(\.\d{1,2})?$/.test(rawAmount) && Number(rawAmount) > 0 ? Math.round(Number(rawAmount) * 100) : null;

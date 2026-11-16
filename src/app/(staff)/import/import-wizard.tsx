@@ -6,12 +6,16 @@ import { Panel } from "@/components/dashboard/primitives";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDate, formatKsh } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { Check, CircleAlert, CircleCheck, FileSpreadsheet, TriangleAlert, Upload } from "lucide-react";
+import { Check, CircleAlert, CircleCheck, FileSpreadsheet, LoaderCircle, TriangleAlert, Upload } from "lucide-react";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import type { ImportResult } from "@/services/import";
+import { importPaymentsAction } from "./actions";
 import { dryRun, guessMapping, parseCsv, SAMPLE_CSV, TARGETS, type Mapping } from "./parse";
 
 const STEPS = ["Upload", "Match columns", "Dry run", "Import"] as const;
+// Step 4 is the results screen; it keeps the last step indicator highlighted.
 const MAX_BYTES = 5 * 1024 * 1024;
 
 export function ImportWizard({ knownNames, today }: { knownNames: string[]; today: string }) {
@@ -21,6 +25,8 @@ export function ImportWizard({ knownNames, today }: { knownNames: string[]; toda
   const [mapping, setMapping] = useState<Mapping>({});
   const [uploadError, setUploadError] = useState<string>();
   const [showAll, setShowAll] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [outcome, setOutcome] = useState<Extract<ImportResult, { ok: true }> | null>(null);
 
   const headers = table[0] ?? [];
   const body = table.slice(1);
@@ -54,10 +60,41 @@ export function ImportWizard({ knownNames, today }: { knownNames: string[]; toda
     load(file.name, await file.text());
   }
 
-  function commit() {
-    toast.success(`${good.length} rows (${formatKsh(goodTotal)}) are ready to import`, {
-      description: `${bad.length} rows with errors will be skipped. Saving is connected in the backend milestone.`,
-    });
+  async function commit() {
+    if (pending) return;
+    setPending(true);
+    try {
+      // Only rows that passed the dry run are sent; the server checks each one again.
+      const result = await importPaymentsAction({
+        fileName: fileName ?? "import.csv",
+        rows: good.map((r) => ({
+          line: r.line,
+          date: r.date!,
+          name: r.name,
+          amountCents: r.amountCents!,
+          method: r.method!,
+          reference: r.reference,
+        })),
+      });
+      if (!result.ok) {
+        toast.error("Import failed", { description: result.message });
+        return;
+      }
+      setOutcome(result);
+      setStep(4);
+    } catch {
+      toast.error("Couldn't reach the server", { description: "It is safe to press Import again: rows already saved won't be recorded twice." });
+    } finally {
+      setPending(false);
+    }
+  }
+
+  function startOver() {
+    setStep(0);
+    setTable([]);
+    setFileName(null);
+    setOutcome(null);
+    setShowAll(false);
   }
 
   return (
@@ -239,6 +276,56 @@ export function ImportWizard({ knownNames, today }: { knownNames: string[]; toda
         </>
       )}
 
+      {step === 4 && outcome && (
+        <Panel className="flex flex-col gap-4 p-6" aria-live="polite">
+          <div className="flex items-start gap-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-positive-soft text-positive-text">
+              <CircleCheck className="size-5" aria-hidden />
+            </span>
+            <div>
+              <h2 className="text-base font-semibold">Import finished</h2>
+              <p className="text-[13px] text-muted-foreground">{fileName}</p>
+            </div>
+          </div>
+          <dl className="grid gap-3 text-[13px] sm:grid-cols-3">
+            <div className="rounded-[10px] bg-positive-soft p-3">
+              <dt className="text-positive-text">Recorded</dt>
+              <dd className="text-lg font-semibold tabular">
+                {outcome.imported} · {formatKsh(outcome.importedCents)}
+              </dd>
+            </div>
+            <div className="rounded-[10px] bg-muted p-3">
+              <dt className="text-muted-foreground">Already in the ledger</dt>
+              <dd className="text-lg font-semibold tabular">{outcome.alreadyImported}</dd>
+            </div>
+            <div className={cn("rounded-[10px] p-3", outcome.skipped.length ? "bg-warning-soft" : "bg-muted")}>
+              <dt className={outcome.skipped.length ? "text-warning-text" : "text-muted-foreground"}>Skipped</dt>
+              <dd className="text-lg font-semibold tabular">{outcome.skipped.length}</dd>
+            </div>
+          </dl>
+          {outcome.skipped.length > 0 && (
+            <ul className="flex flex-col gap-1.5 rounded-[10px] border border-amber-200 bg-warning-soft p-3 text-[13px] text-warning-text">
+              {outcome.skipped.map((s) => (
+                <li key={s.line} className="flex gap-2">
+                  <TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                  <span>
+                    <span className="font-medium tabular">Line {s.line}:</span> {s.reason}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="flex flex-wrap justify-between gap-2 border-t border-border pt-4">
+            <button type="button" onClick={startOver} className={buttonClass("secondary")}>
+              Import another file
+            </button>
+            <Link href="/contributions" className={buttonClass("primary")}>
+              View contributions
+            </Link>
+          </div>
+        </Panel>
+      )}
+
       {step === 3 && (
         <Panel className="flex flex-col gap-4 p-6">
           <h2 className="text-base font-semibold">Confirm import</h2>
@@ -257,16 +344,16 @@ export function ImportWizard({ knownNames, today }: { knownNames: string[]; toda
             </div>
           </dl>
           <p className="text-[13px] text-muted-foreground">
-            Imported rows are recorded as ordinary payments, marked as imported in the audit log, and can only be corrected by reversal. Running the same
-            file twice is safe: M-Pesa codes already in the ledger are rejected.
+            Each row is recorded as an ordinary payment with a note of the file and line, checked by the same rules as typed payments, and can only be
+            corrected by reversal. Importing the same file twice is safe: rows already saved are not recorded again.
           </p>
           <div className="flex flex-wrap justify-between gap-2 border-t border-border pt-4">
             <button type="button" onClick={() => setStep(2)} className={buttonClass("secondary")}>
               Back
             </button>
-            <button type="button" onClick={commit} className={buttonClass("primary")}>
-              <Upload className="size-4" aria-hidden />
-              Import {good.length} rows
+            <button type="button" onClick={commit} disabled={pending} className={buttonClass("primary")}>
+              {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : <Upload className="size-4" aria-hidden />}
+              {pending ? `Importing ${good.length} rows…` : `Import ${good.length} rows`}
             </button>
           </div>
         </Panel>
