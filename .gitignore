@@ -49,3 +49,9 @@ next-env.d.ts
 
 # Real parish data (names, amounts): never commit
 /private/
+
+# AI editor tooling (skills installed per developer; not part of the app)
+/.agents/
+/.windsurf/
+/.claude/
+/skills-lock.json
