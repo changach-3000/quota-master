@@ -83,7 +83,7 @@ async function Report({ searchParams }: { searchParams: PageProps<"/reports">["s
               const change = r.collectedLastYear !== null ? formatChange(r.collected, r.collectedLastYear) : null;
               const pct = percent(r.collected, r.quota);
               return (
-                <TableRow key={r.id} className="border-slate-100">
+                <TableRow key={r.id} className="border-divider">
                   <TableCell className="py-3 pl-5 font-medium">{r.name}</TableCell>
                   <TableCell className="py-3 text-right tabular">{formatKsh(r.quota)}</TableCell>
                   <TableCell className={cn("py-3 text-right tabular", r.pledged < r.quota && "text-warning-text")}>{formatKsh(r.pledged)}</TableCell>

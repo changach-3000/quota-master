@@ -143,7 +143,7 @@ async function MyGiving() {
                   {data.payments.map((p) => {
                     const Icon = p.isReversal ? Undo2 : p.method === "cash" ? Banknote : Smartphone;
                     return (
-                      <TableRow key={p.id} className="border-slate-100">
+                      <TableRow key={p.id} className="border-divider">
                         <TableCell className="py-3 pl-5 whitespace-nowrap tabular">
                           {formatDate(p.receivedOn)}
                           {p.dateIsEstimated && <span className="block text-xs font-normal text-muted-foreground">date not recorded</span>}
@@ -154,7 +154,7 @@ async function MyGiving() {
                             {p.isReversal ? "Correction" : p.method ? METHOD[p.method] : "—"}
                           </span>
                         </TableCell>
-                        <TableCell className="hidden py-3 font-mono text-xs text-slate-600 sm:table-cell">
+                        <TableCell className="hidden py-3 font-mono text-xs text-foreground-soft sm:table-cell">
                           {p.isReversal ? "Reversed entry" : referenceLabel(p.method, p.reference)}
                         </TableCell>
                         <TableCell className={cn("py-3 pr-5 text-right font-semibold whitespace-nowrap tabular", p.amount < 0 && "text-negative")}>
@@ -212,7 +212,7 @@ async function MyGiving() {
               <span className="text-xs font-medium text-muted-foreground">Collected by month</span>
               <ChurchTrend labels={labels} values={church.monthly} churchName={data.me.church} />
             </div>
-            <p className="flex gap-2.5 rounded-[10px] border border-border bg-background p-3 text-xs text-slate-600">
+            <p className="flex gap-2.5 rounded-[10px] border border-border bg-background p-3 text-xs text-foreground-soft">
               <Lock className="mt-px size-4 shrink-0 text-muted-foreground" strokeWidth={1.75} aria-hidden />
               Church figures are totals only. Your own giving is visible to you, the parish treasurer and the auditor, never to other
               members.

@@ -92,7 +92,7 @@ async function Pledge() {
             );
           })}
         </Panel>
-        <Panel className="flex min-w-0 flex-[1_1_280px] gap-3 p-5 text-[13px] text-slate-700">
+        <Panel className="flex min-w-0 flex-[1_1_280px] gap-3 p-5 text-[13px] text-foreground-soft">
           <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
           <div className="flex flex-col gap-2">
             <p className="font-medium text-foreground">About pledges</p>

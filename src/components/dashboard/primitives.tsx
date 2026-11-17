@@ -41,7 +41,7 @@ const TONES = {
   positive: "bg-positive-soft text-positive-text",
   warning: "bg-warning-soft text-warning-text",
   negative: "bg-negative-soft text-negative",
-  info: "bg-blue-50 text-blue-700",
+  info: "bg-primary-soft text-primary",
 } as const;
 
 export function StatCard({
@@ -101,7 +101,7 @@ export function Meter({
         size === "lg" && "h-2.5",
       )}
     >
-      <div className="h-full rounded-full bg-positive" style={{ width: `${clamped}%` }} />
+      <div className="h-full rounded-full bg-primary" style={{ width: `${clamped}%` }} />
       {marker !== undefined && (
         <div
           className="absolute -top-[3px] h-[calc(100%+6px)] w-0.5 rounded-sm bg-foreground"
@@ -116,11 +116,11 @@ export function Meter({
 export type Status = "undeposited" | "deposited" | "historical" | "reversal" | "reversed";
 
 const STATUS: Record<Status, { label: string; icon: LucideIcon; className: string }> = {
-  undeposited: { label: "Undeposited", icon: Clock, className: "border-amber-200 bg-warning-soft text-warning-text" },
-  deposited: { label: "Deposited", icon: CircleCheck, className: "border-green-200 bg-positive-soft text-positive-text" },
-  historical: { label: "Historical", icon: History, className: "border-violet-200 bg-violet-50 text-violet-700" },
-  reversal: { label: "Reversal", icon: Undo2, className: "border-red-200 bg-negative-soft text-negative-text" },
-  reversed: { label: "Reversed", icon: Undo2, className: "border-slate-200 bg-muted text-slate-600" },
+  undeposited: { label: "Undeposited", icon: Clock, className: "border-warning-border bg-warning-soft text-warning-text" },
+  deposited: { label: "Deposited", icon: CircleCheck, className: "border-positive-border bg-positive-soft text-positive-text" },
+  historical: { label: "Historical", icon: History, className: "border-historical-border bg-historical-soft text-historical-text" },
+  reversal: { label: "Reversal", icon: Undo2, className: "border-negative-border bg-negative-soft text-negative-text" },
+  reversed: { label: "Reversed", icon: Undo2, className: "border-border bg-muted text-foreground-soft" },
 };
 
 /** Status always pairs colour with an icon and a word. */

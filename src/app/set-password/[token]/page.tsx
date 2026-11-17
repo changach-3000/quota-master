@@ -13,7 +13,7 @@ export default function SetPasswordPage({ params }: PageProps<"/set-password/[to
     <main className="flex min-h-dvh items-center justify-center bg-background p-4">
       <div className="flex w-full max-w-[400px] flex-col gap-6 rounded-xl border border-border bg-card p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:p-8">
         <div className="flex items-center gap-2.5">
-          <span className="flex size-9 items-center justify-center rounded-[10px] bg-positive text-white">
+          <span className="flex size-9 items-center justify-center rounded-[10px] bg-sunshine text-foreground">
             <Church className="size-[18px]" strokeWidth={2} aria-hidden />
           </span>
           <span className="text-[15px] font-semibold">Quota Master</span>

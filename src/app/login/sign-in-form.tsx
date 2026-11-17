@@ -13,7 +13,7 @@ export function SignInForm() {
   return (
     <form action={action} noValidate className="flex flex-col gap-4">
       {state.error && (
-        <div role="alert" className="flex gap-2.5 rounded-[10px] border border-amber-200 bg-warning-soft p-3 text-[13px] text-warning-text">
+        <div role="alert" className="flex gap-2.5 rounded-[10px] border border-warning-border bg-warning-soft p-3 text-[13px] text-warning-text">
           <CircleAlert className="mt-px size-4 shrink-0" strokeWidth={2} aria-hidden />
           {state.error}
         </div>

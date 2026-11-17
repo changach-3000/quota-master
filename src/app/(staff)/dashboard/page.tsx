@@ -22,7 +22,7 @@ export default function DashboardPage() {
   return (
     <>
       <TopBar start={<TopBarSearch placeholder="Search parishioners, M-Pesa codes, receipts" />}>
-        <span className="rounded-full border border-border bg-muted px-2.5 py-0.5 text-xs font-medium text-slate-600">
+        <span className="rounded-full border border-border bg-muted px-2.5 py-0.5 text-xs font-medium text-foreground-soft">
           Demo data
         </span>
         <NotificationsButton />
@@ -96,7 +96,7 @@ async function Overview() {
         <StatCard label="Collected this period" value={formatKsh(data.collected)} icon={ArrowDownLeft} tone="positive">
           <div className="flex flex-col gap-1.5">
             <div className="h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden>
-              <div className="h-full rounded-full bg-positive" style={{ width: `${Math.min(quotaPct, 100)}%` }} />
+              <div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(quotaPct, 100)}%` }} />
             </div>
             <div className="flex justify-between gap-2 text-xs text-muted-foreground tabular">
               <span>

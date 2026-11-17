@@ -30,7 +30,7 @@ export function ChurchTrend({ labels, values, churchName }: { labels: string[]; 
         <Bar dataKey="total" radius={[4, 4, 0, 0]} maxBarSize={24}>
           {rows.map((r, i) => (
             // The current (partial) month is lighter so it doesn't read as a drop.
-            <Cell key={r.label + i} fill={i === rows.length - 1 ? "#86CFA0" : "var(--color-total)"} />
+            <Cell key={r.label + i} fill={i === rows.length - 1 ? "var(--chart-6)" : "var(--color-total)"} />
           ))}
         </Bar>
       </BarChart>

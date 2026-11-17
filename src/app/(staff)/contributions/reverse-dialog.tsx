@@ -64,7 +64,7 @@ export function ReverseButton({ contribution: c }: { contribution: Contribution 
             </DialogDescription>
           </DialogHeader>
           {c.deposited && (
-            <p className="flex gap-2 rounded-[10px] border border-amber-200 bg-warning-soft p-3 text-[13px] text-warning-text">
+            <p className="flex gap-2 rounded-[10px] border border-warning-border bg-warning-soft p-3 text-[13px] text-warning-text">
               <TriangleAlert className="mt-px size-4 shrink-0" strokeWidth={2} aria-hidden />
               This payment is already in a bank deposit. Check with the auditor before reversing it.
             </p>

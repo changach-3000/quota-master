@@ -231,7 +231,7 @@ export function ImportWizard({ knownNames, today }: { knownNames: string[]; toda
               </TableHeader>
               <TableBody>
                 {(showAll ? results : [...bad, ...warn]).map((r) => (
-                  <TableRow key={r.line} className="border-slate-100 align-top">
+                  <TableRow key={r.line} className="border-divider align-top">
                     <TableCell className="py-3 pl-5 text-muted-foreground tabular">{r.line}</TableCell>
                     <TableCell className="py-3 whitespace-nowrap tabular">{r.date ? formatDate(r.date) : "—"}</TableCell>
                     <TableCell className="py-3">{r.name || "—"}</TableCell>
@@ -303,7 +303,7 @@ export function ImportWizard({ knownNames, today }: { knownNames: string[]; toda
             </div>
           </dl>
           {outcome.skipped.length > 0 && (
-            <ul className="flex flex-col gap-1.5 rounded-[10px] border border-amber-200 bg-warning-soft p-3 text-[13px] text-warning-text">
+            <ul className="flex flex-col gap-1.5 rounded-[10px] border border-warning-border bg-warning-soft p-3 text-[13px] text-warning-text">
               {outcome.skipped.map((s) => (
                 <li key={s.line} className="flex gap-2">
                   <TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />

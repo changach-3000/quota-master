@@ -319,13 +319,13 @@ export function YearSheetWizard({
                     const isNew = !known.has(p.name.toLowerCase());
                     const showDates = dateRows.has(p.line);
                     return (
-                      <tr key={p.line} className={cn("border-b border-slate-100 align-top", p.errors.length && "bg-negative-soft/50")}>
+                      <tr key={p.line} className={cn("border-b border-divider align-top", p.errors.length && "bg-negative-soft/50")}>
                         <td className="py-3 pr-3 pl-5 text-muted-foreground tabular">{p.line}</td>
                         <td className="px-3 py-3">
                           <span className="flex flex-col gap-0.5">
                             <span className="font-medium">{p.name || "—"}</span>
                             {p.name && isNew && (
-                              <span className="inline-flex w-fit items-center gap-1 rounded-full bg-blue-50 px-1.5 py-0.5 text-[11px] font-medium text-blue-700">
+                              <span className="inline-flex w-fit items-center gap-1 rounded-full bg-primary-soft px-1.5 py-0.5 text-[11px] font-medium text-primary">
                                 <UserPlus className="size-3" aria-hidden /> New parishioner
                               </span>
                             )}
@@ -339,7 +339,7 @@ export function YearSheetWizard({
                                 <span
                                   className={cn(
                                     "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 font-mono text-xs tabular",
-                                    i.method === "mpesa" ? "border-green-200 bg-positive-soft text-positive-text" : "border-border bg-card",
+                                    i.method === "mpesa" ? "border-positive-border bg-positive-soft text-positive-text" : "border-border bg-card",
                                   )}
                                   title={i.method === "mpesa" ? "M-Pesa" : "Cash"}
                                 >
@@ -428,7 +428,7 @@ export function YearSheetWizard({
       {step === 3 && (
         <Panel className="flex flex-col gap-4 p-6">
           <h2 className="text-base font-semibold">Confirm import</h2>
-          <ul className="flex flex-col gap-2 text-[13px] text-slate-700">
+          <ul className="flex flex-col gap-2 text-[13px] text-foreground-soft">
             <li>
               <strong>{importable.length}</strong> people into <strong>{churches.find((c) => c.id === churchId)?.name}</strong>, of whom{" "}
               <strong>{newPeople.length}</strong> will be added as new parishioners.
@@ -476,7 +476,7 @@ export function YearSheetWizard({
             <Stat label="New parishioners" value={String(outcome.people.added)} />
           </dl>
           {[...outcome.skipped.map((s) => ({ line: s.line, text: s.reason })), ...outcome.notes.map((n) => ({ line: n.line, text: n.note }))].length > 0 && (
-            <ul className="flex flex-col gap-1.5 rounded-[10px] border border-amber-200 bg-warning-soft p-3 text-[13px] text-warning-text">
+            <ul className="flex flex-col gap-1.5 rounded-[10px] border border-warning-border bg-warning-soft p-3 text-[13px] text-warning-text">
               {outcome.skipped.map((s) => (
                 <li key={`s${s.line}`}>
                   <span className="font-medium tabular">Row {s.line} skipped:</span> {s.reason}
@@ -572,7 +572,7 @@ function Summary({
     positive: "bg-positive-soft text-positive-text",
     warning: "bg-warning-soft text-warning-text",
     negative: "bg-negative-soft text-negative",
-    info: "bg-blue-50 text-blue-700",
+    info: "bg-primary-soft text-primary",
   };
   return (
     <Panel className="flex items-center gap-3 p-4">

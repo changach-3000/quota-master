@@ -156,7 +156,7 @@ export function DepositBuilder({ payments, today }: { payments: UndepositedPayme
             </TableHeader>
             <TableBody>
               {visible.map((p) => (
-                <TableRow key={p.id} className="border-slate-100" data-state={selected.has(p.id) ? "selected" : undefined}>
+                <TableRow key={p.id} className="border-divider" data-state={selected.has(p.id) ? "selected" : undefined}>
                   <TableCell className="pl-5">
                     <Checkbox checked={selected.has(p.id)} onCheckedChange={(v) => toggle(p.id, !!v)} aria-label={`Include ${p.parishioner}, ${formatKsh(p.amount)}`} />
                   </TableCell>
@@ -172,7 +172,7 @@ export function DepositBuilder({ payments, today }: { payments: UndepositedPayme
                       <span className="font-mono text-xs text-muted-foreground">{p.reference}</span>
                     </span>
                   </TableCell>
-                  <TableCell className="py-3 whitespace-nowrap text-slate-600 tabular">{formatDate(p.receivedOn)}</TableCell>
+                  <TableCell className="py-3 whitespace-nowrap text-foreground-soft tabular">{formatDate(p.receivedOn)}</TableCell>
                   <TableCell className="py-3 pr-5 text-right font-semibold tabular">{formatKsh(p.amount)}</TableCell>
                 </TableRow>
               ))}
@@ -204,7 +204,7 @@ export function DepositBuilder({ payments, today }: { payments: UndepositedPayme
           />
         </Field>
         {mismatch && !errors.slip && (
-          <p className="flex gap-2 rounded-[10px] border border-amber-200 bg-warning-soft p-3 text-[13px] text-warning-text tabular">
+          <p className="flex gap-2 rounded-[10px] border border-warning-border bg-warning-soft p-3 text-[13px] text-warning-text tabular">
             <TriangleAlert className="mt-px size-4 shrink-0" aria-hidden />
             Off by {formatKsh(Math.abs(slipCents! - total))}. Check the slip or the ticked payments.
           </p>

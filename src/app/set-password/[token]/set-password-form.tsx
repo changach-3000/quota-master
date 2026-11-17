@@ -12,7 +12,7 @@ export function SetPasswordForm({ token, email, cta }: { token: string; email: s
   return (
     <form action={action} noValidate className="flex flex-col gap-4">
       {state.error && (
-        <div role="alert" className="flex gap-2.5 rounded-[10px] border border-red-200 bg-negative-soft p-3 text-[13px] text-negative-text">
+        <div role="alert" className="flex gap-2.5 rounded-[10px] border border-negative-border bg-negative-soft p-3 text-[13px] text-negative-text">
           <CircleAlert className="mt-px size-4 shrink-0" aria-hidden />
           {state.error}
         </div>

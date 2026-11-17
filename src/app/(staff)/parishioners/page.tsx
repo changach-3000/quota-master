@@ -93,7 +93,7 @@ async function Results({ searchParams }: { searchParams: PageProps<"/parishioner
             </TableHeader>
             <TableBody>
               {result.rows.map((r) => (
-                <TableRow key={r.id} className="group relative border-slate-100">
+                <TableRow key={r.id} className="group relative border-divider">
                   <TableCell className="py-3 pl-5">
                     <Link href={`/parishioners/${r.id}`} className="flex flex-col after:absolute after:inset-0 focus-visible:outline-none">
                       <span className="font-medium group-hover:underline">{r.name}</span>
@@ -103,7 +103,7 @@ async function Results({ searchParams }: { searchParams: PageProps<"/parishioner
                       </span>
                     </Link>
                   </TableCell>
-                  <TableCell className="py-3 whitespace-nowrap text-slate-600 tabular">{r.lastPaymentOn ? formatDate(r.lastPaymentOn) : "—"}</TableCell>
+                  <TableCell className="py-3 whitespace-nowrap text-foreground-soft tabular">{r.lastPaymentOn ? formatDate(r.lastPaymentOn) : "—"}</TableCell>
                   <TableCell className="py-3 text-right tabular">{r.pledged ? formatKsh(r.pledged) : "—"}</TableCell>
                   <TableCell className="py-3 text-right tabular">{formatKsh(r.received)}</TableCell>
                   <TableCell className="py-3 text-right font-semibold tabular">

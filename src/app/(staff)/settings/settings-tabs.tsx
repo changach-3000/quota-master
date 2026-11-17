@@ -157,7 +157,7 @@ function QuotasPanel({ setup, canEdit }: { setup: Setup; canEdit: boolean }) {
         </TableHeader>
         <TableBody>
           {setup.churches.map((c) => (
-            <TableRow key={c.id} className="border-slate-100">
+            <TableRow key={c.id} className="border-divider">
               <TableCell className="py-3 font-medium">
                 <span className="inline-flex items-center gap-2">
                   <Church className="size-4 text-muted-foreground" aria-hidden />
@@ -267,7 +267,7 @@ function PeriodsPanel({ periods, canEdit }: { periods: Period[]; canEdit: boolea
           </TableHeader>
           <TableBody>
             {periods.map((p) => (
-              <TableRow key={p.id} className="border-slate-100">
+              <TableRow key={p.id} className="border-divider">
                 <TableCell className="py-3 pl-5 font-medium">{p.name}</TableCell>
                 <TableCell className="py-3 tabular">{formatDate(p.startsOn)}</TableCell>
                 <TableCell className="py-3 pr-5 tabular">{formatDate(p.endsOn)}</TableCell>
@@ -373,19 +373,19 @@ function UsersPanel({
           </TableHeader>
           <TableBody>
             {users.map((u) => (
-              <TableRow key={u.id} className="border-slate-100">
+              <TableRow key={u.id} className="border-divider">
                 <TableCell className="py-3 pl-5 font-medium">{u.email}</TableCell>
                 <TableCell className="py-3 capitalize">{u.role}</TableCell>
-                <TableCell className="py-3 text-slate-600">{u.parishioner ?? "—"}</TableCell>
+                <TableCell className="py-3 text-foreground-soft">{u.parishioner ?? "—"}</TableCell>
                 <TableCell className="py-3">
                   {!u.isActive ? (
                     <span className="text-muted-foreground">Disabled</span>
                   ) : u.invitePending ? (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-warning-soft px-2 py-0.5 text-xs font-medium text-warning-text">
+                    <span className="inline-flex items-center gap-1 rounded-full border border-warning-border bg-warning-soft px-2 py-0.5 text-xs font-medium text-warning-text">
                       <Mail className="size-3" aria-hidden /> Invite pending
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-positive-soft px-2 py-0.5 text-xs font-medium text-positive-text">
+                    <span className="inline-flex items-center gap-1 rounded-full border border-positive-border bg-positive-soft px-2 py-0.5 text-xs font-medium text-positive-text">
                       <ShieldCheck className="size-3" aria-hidden /> Active
                     </span>
                   )}
@@ -464,7 +464,7 @@ function OneTimeLink({ title, path, note }: { title: string; path: string; note:
   const [copied, setCopied] = useState(false);
   const url = typeof window === "undefined" ? path : `${window.location.origin}${path}`;
   return (
-    <div className="flex flex-col gap-2 rounded-[10px] border border-green-200 bg-positive-soft p-3">
+    <div className="flex flex-col gap-2 rounded-[10px] border border-positive-border bg-positive-soft p-3">
       <span className="text-[13px] font-medium text-positive-text">{title}</span>
       <div className="flex gap-2">
         <label htmlFor={`link-${path.slice(-8)}`} className="sr-only">
@@ -483,7 +483,7 @@ function OneTimeLink({ title, path, note }: { title: string; path: string; note:
           {copied ? "Copied" : "Copy"}
         </button>
       </div>
-      <span className="text-xs text-slate-600">{note} It won&apos;t be shown again.</span>
+      <span className="text-xs text-foreground-soft">{note} It won&apos;t be shown again.</span>
     </div>
   );
 }
@@ -501,8 +501,8 @@ function SecurityPanel() {
       <PanelHeader id="security-title" title="Security" description="What protects the parish's records. Planned items arrive with the backend." />
       <ul className="mt-3 flex flex-col">
         {items.map(({ icon: Icon, title, body, status, ready }, i) => (
-          <li key={title} className={cn("flex items-start gap-3 py-3.5", i > 0 && "border-t border-slate-100")}>
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-muted text-slate-600">
+          <li key={title} className={cn("flex items-start gap-3 py-3.5", i > 0 && "border-t border-divider")}>
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-muted text-foreground-soft">
               <Icon className="size-[18px]" strokeWidth={1.75} aria-hidden />
             </span>
             <span className="flex grow flex-col">
@@ -512,7 +512,7 @@ function SecurityPanel() {
             <span
               className={cn(
                 "rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap",
-                ready ? "border-green-200 bg-positive-soft text-positive-text" : "border-slate-200 bg-muted text-slate-600",
+                ready ? "border-positive-border bg-positive-soft text-positive-text" : "border-border bg-muted text-foreground-soft",
               )}
             >
               {status}

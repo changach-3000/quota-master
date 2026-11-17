@@ -72,7 +72,7 @@ async function Deposits() {
             </TableHeader>
             <TableBody>
               {history.map((d) => (
-                <TableRow key={d.id} className="border-slate-100">
+                <TableRow key={d.id} className="border-divider">
                   <TableCell className="py-3 pl-5">
                     <span className="inline-flex items-center gap-2 font-medium whitespace-nowrap">
                       <CircleCheck className="size-4 text-positive-text" strokeWidth={2} aria-hidden />
@@ -85,8 +85,8 @@ async function Deposits() {
                       <span className="text-xs text-muted-foreground">{d.bankAccount}</span>
                     </span>
                   </TableCell>
-                  <TableCell className="py-3 text-right text-slate-600 tabular">{formatKsh(d.mpesa)}</TableCell>
-                  <TableCell className="py-3 text-right text-slate-600 tabular">{formatKsh(d.cash)}</TableCell>
+                  <TableCell className="py-3 text-right text-foreground-soft tabular">{formatKsh(d.mpesa)}</TableCell>
+                  <TableCell className="py-3 text-right text-foreground-soft tabular">{formatKsh(d.cash)}</TableCell>
                   <TableCell className="py-3 text-right tabular">{d.items}</TableCell>
                   <TableCell className="py-3 pr-5 text-right font-semibold tabular">{formatKsh(d.amount)}</TableCell>
                 </TableRow>

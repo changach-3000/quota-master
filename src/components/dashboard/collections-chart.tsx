@@ -59,7 +59,7 @@ function TooltipBody({ row, mode, currentName, previousName }: { row: Row; mode:
       {change && (
         <span className="flex justify-between gap-3">
           <span className="text-sidebar-muted">Change</span>
-          <span className={change.startsWith("+") ? "text-green-400" : "text-red-300"}>{change}</span>
+          <span className={change.startsWith("+") ? "text-mint" : "text-coral"}>{change}</span>
         </span>
       )}
     </div>
@@ -84,7 +84,7 @@ export function CollectionsChart({ labels, current, previous, quota, currentName
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-4 text-xs text-slate-600">
+        <div className="flex flex-wrap gap-4 text-xs text-foreground-soft">
           {mode === "monthly" ? (
             <>
               <LegendSwatch className="size-2.5 rounded-[3px] bg-chart-1">{currentName}</LegendSwatch>

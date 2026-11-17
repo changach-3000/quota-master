@@ -310,7 +310,7 @@ export function RecordPaymentForm({ parishioners, today, periodName }: { parishi
           </div>
         </dl>
         {selected && cents > 0 && selected.pledged > 0 && after !== null && (
-          <p className={cn("rounded-[10px] p-3 text-[13px] tabular", after >= 0 ? "bg-muted text-slate-700" : "bg-positive-soft text-positive-text")}>
+          <p className={cn("rounded-[10px] p-3 text-[13px] tabular", after >= 0 ? "bg-muted text-foreground-soft" : "bg-positive-soft text-positive-text")}>
             {after > 0
               ? `${formatKsh(after)} will still be outstanding on their pledge.`
               : after === 0

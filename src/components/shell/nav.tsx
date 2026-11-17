@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Suspense } from "react";
 
 /** Section roots match their sub-pages; the two home pages match exactly. */
 function isActive(pathname: string, href: string) {
@@ -67,9 +68,28 @@ export const NAV: Record<"staff" | "member", NavSection[]> = {
   ],
 };
 
+// Reading the current path is request-time data. Under Cache Components it
+// must sit inside <Suspense> so pages (including dynamic ones like
+// /parishioners/[id]) can still be prerendered; the fallback is the same menu
+// with nothing highlighted.
+function withPathname<P extends { pathname: string }>(View: (props: P) => React.ReactNode) {
+  type Outer = Omit<P, "pathname">;
+  function Live(props: Outer) {
+    return <View {...(props as P)} pathname={usePathname()} />;
+  }
+  return function Nav(props: Outer) {
+    return (
+      <Suspense fallback={<View {...(props as P)} pathname="" />}>
+        <Live {...props} />
+      </Suspense>
+    );
+  };
+}
+
 /** Vertical navigation for the dark sidebar. */
-export function SidebarNav({ variant, badges = {} }: { variant: "staff" | "member"; badges?: Record<string, string> }) {
-  const pathname = usePathname();
+export const SidebarNav = withPathname(SidebarNavView);
+
+function SidebarNavView({ variant, badges = {}, pathname }: { variant: "staff" | "member"; badges?: Record<string, string>; pathname: string }) {
   return (
     <nav aria-label="Main" className="flex flex-col gap-5">
       {NAV[variant].map((section, i) => (
@@ -98,7 +118,7 @@ export function SidebarNav({ variant, badges = {} }: { variant: "staff" | "membe
                 <Icon className={cn("size-[18px]", active && "text-sidebar-primary")} strokeWidth={1.75} aria-hidden />
                 <span className="grow">{item.label}</span>
                 {badges[item.label] && (
-                  <span className="rounded-full bg-amber-400 px-1.5 text-[11px] font-semibold text-slate-900 tabular">
+                  <span className="rounded-full bg-sunshine px-1.5 text-[11px] font-semibold text-foreground tabular">
                     {badges[item.label]}
                   </span>
                 )}
@@ -112,8 +132,9 @@ export function SidebarNav({ variant, badges = {} }: { variant: "staff" | "membe
 }
 
 /** Bottom tab bar for members on phones. */
-export function MemberTabBar() {
-  const pathname = usePathname();
+export const MemberTabBar = withPathname(MemberTabBarView);
+
+function MemberTabBarView({ pathname }: { pathname: string }) {
   const tabs = NAV.member[0].items.filter((i) => i.label !== "Settings").slice(0, 4);
   return (
     <nav
@@ -130,7 +151,7 @@ export function MemberTabBar() {
             aria-current={active ? "page" : undefined}
             className={cn(
               "flex min-h-13 flex-col items-center justify-center gap-0.5 rounded-lg text-[11px] font-medium",
-              active ? "font-semibold text-positive-text" : "text-muted-foreground",
+              active ? "font-semibold text-primary" : "text-muted-foreground",
             )}
           >
             <Icon className="size-5" strokeWidth={1.75} aria-hidden />
@@ -143,8 +164,9 @@ export function MemberTabBar() {
 }
 
 /** Horizontal nav for staff on narrow screens. */
-export function StaffMobileNav() {
-  const pathname = usePathname();
+export const StaffMobileNav = withPathname(StaffMobileNavView);
+
+function StaffMobileNavView({ pathname }: { pathname: string }) {
   const items = NAV.staff.flatMap((s) => s.items);
   return (
     <nav aria-label="Main" className="flex gap-1 overflow-x-auto bg-sidebar px-3 pb-3 lg:hidden">

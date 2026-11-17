@@ -80,7 +80,7 @@ async function Log({ searchParams }: { searchParams: PageProps<"/audit">["search
             </TableHeader>
             <TableBody>
               {result.rows.map((r) => (
-                <TableRow key={r.id} className="border-slate-100">
+                <TableRow key={r.id} className="border-divider">
                   <TableCell className="py-3 pl-5 whitespace-nowrap tabular">
                     <span className="flex flex-col">
                       <span>{formatDate(r.occurredAt.slice(0, 10))}</span>
@@ -97,7 +97,7 @@ async function Log({ searchParams }: { searchParams: PageProps<"/audit">["search
                     <span className="flex flex-wrap items-center gap-1.5">
                       {label(r.action)}
                       {r.isBackdated && (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-warning-soft px-1.5 py-0.5 text-[11px] font-medium text-warning-text">
+                        <span className="inline-flex items-center gap-1 rounded-full border border-warning-border bg-warning-soft px-1.5 py-0.5 text-[11px] font-medium text-warning-text">
                           <CalendarClock className="size-3" aria-hidden />
                           Backdated
                         </span>
@@ -110,7 +110,7 @@ async function Log({ searchParams }: { searchParams: PageProps<"/audit">["search
                       {r.entityId && <span className="font-mono text-xs text-muted-foreground">{r.entityId.slice(0, 8)}</span>}
                     </span>
                   </TableCell>
-                  <TableCell className="py-3 pr-5 text-slate-600 tabular">{r.summary ?? "—"}</TableCell>
+                  <TableCell className="py-3 pr-5 text-foreground-soft tabular">{r.summary ?? "—"}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

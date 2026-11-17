@@ -38,7 +38,7 @@ export default function LoginPage() {
       {/* About */}
       <section aria-labelledby="about-title" className="flex flex-col gap-6 bg-sidebar px-6 py-6 text-sidebar-foreground sm:gap-10 sm:px-12 sm:py-8 lg:py-12">
         <div className="flex items-center gap-2.5">
-          <span className="flex size-9 items-center justify-center rounded-[10px] bg-positive text-white">
+          <span className="flex size-9 items-center justify-center rounded-[10px] bg-sunshine text-foreground">
             <Church className="size-[18px]" strokeWidth={2} aria-hidden />
           </span>
           <span className="flex flex-col">
@@ -51,7 +51,7 @@ export default function LoginPage() {
           <h1 id="about-title" className="text-2xl leading-tight font-semibold tracking-tight text-white sm:text-4xl">
             Church quotas and contributions, kept clear and accountable.
           </h1>
-          <p className="hidden text-[15px] leading-relaxed text-slate-300 sm:block">
+          <p className="hidden text-[15px] leading-relaxed text-sidebar-foreground sm:block">
             Quota Master replaces the treasurer&apos;s spreadsheet. It tracks what each church owes toward its parish quota, what every
             parishioner has pledged and given, and which money has been banked.
           </p>

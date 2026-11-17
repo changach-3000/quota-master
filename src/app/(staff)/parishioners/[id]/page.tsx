@@ -106,7 +106,7 @@ async function Detail({ params }: { params: PageProps<"/parishioners/[id]">["par
               {p.ledger.map((e) => {
                 const status = e.kind === "reversal" ? "reversal" : e.reversed ? "reversed" : e.deposited ? "deposited" : e.historical ? "historical" : "undeposited";
                 return (
-                  <TableRow key={e.id} className="border-slate-100">
+                  <TableRow key={e.id} className="border-divider">
                     <TableCell className="py-3 pl-5 whitespace-nowrap tabular">
                       {formatDate(e.receivedOn)}
                       {e.dateIsEstimated && <span className="block text-xs font-normal text-muted-foreground">date not recorded</span>}
@@ -118,7 +118,7 @@ async function Detail({ params }: { params: PageProps<"/parishioners/[id]">["par
                         {e.reason && <span className="text-xs text-muted-foreground">“{e.reason}”</span>}
                       </span>
                     </TableCell>
-                    <TableCell className="py-3 text-slate-600">{e.period}</TableCell>
+                    <TableCell className="py-3 text-foreground-soft">{e.period}</TableCell>
                     <TableCell className="py-3">
                       <StatusBadge status={status} />
                     </TableCell>
@@ -146,7 +146,7 @@ async function Detail({ params }: { params: PageProps<"/parishioners/[id]">["par
           <p className="text-[13px] text-muted-foreground">Changing a pledge adds a new version. Old versions stay so past reports don&apos;t change.</p>
           <ol className="flex flex-col">
             {p.pledges.map((v, i) => (
-              <li key={v.id} className={cn("flex items-center justify-between gap-3 py-2.5", i > 0 && "border-t border-slate-100")}>
+              <li key={v.id} className={cn("flex items-center justify-between gap-3 py-2.5", i > 0 && "border-t border-divider")}>
                 <span className="flex flex-col">
                   <span className="font-medium">
                     {v.period} · v{v.version}

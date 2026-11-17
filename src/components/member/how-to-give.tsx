@@ -24,7 +24,7 @@ export function HowToGiveButton() {
           <h3 id="give-mpesa" className="flex items-center gap-2 text-sm font-semibold">
             <Smartphone className="size-4 text-primary" aria-hidden /> M-Pesa
           </h3>
-          <ol className="ml-5 list-decimal space-y-1 text-[13px] text-slate-700">
+          <ol className="ml-5 list-decimal space-y-1 text-[13px] text-foreground-soft">
             <li>Open M-Pesa and choose Send Money.</li>
             <li>
               Send to <strong className="tabular">{MPESA_NUMBER}</strong> (parish treasurer).
@@ -36,7 +36,7 @@ export function HowToGiveButton() {
           <h3 id="give-cash" className="flex items-center gap-2 text-sm font-semibold">
             <Banknote className="size-4 text-primary" aria-hidden /> Cash
           </h3>
-          <p className="text-[13px] text-slate-700">Hand it to the treasurer after Mass and ask for a numbered receipt.</p>
+          <p className="text-[13px] text-foreground-soft">Hand it to the treasurer after Mass and ask for a numbered receipt.</p>
         </section>
         <DialogFooter>
           <DialogClose className={buttonClass("secondary")}>Close</DialogClose>

@@ -46,7 +46,7 @@ export function RecentContributions({ rows }: { rows: Row[] }) {
           </TableHeader>
           <TableBody>
             {rows.map((r) => (
-              <TableRow key={r.id} className="border-slate-100">
+              <TableRow key={r.id} className="border-divider">
                 <TableCell className="py-3 pl-5">
                   <div className="flex flex-col">
                     <span className="font-medium">{r.parishioner}</span>
@@ -61,7 +61,7 @@ export function RecentContributions({ rows }: { rows: Row[] }) {
                     </span>
                   </div>
                 </TableCell>
-                <TableCell className="py-3 whitespace-nowrap text-slate-600 tabular">{formatDate(r.receivedOn)}</TableCell>
+                <TableCell className="py-3 whitespace-nowrap text-foreground-soft tabular">{formatDate(r.receivedOn)}</TableCell>
                 <TableCell className="py-3">
                   <StatusBadge status={r.status} />
                 </TableCell>

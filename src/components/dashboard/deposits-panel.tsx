@@ -26,14 +26,14 @@ export function DepositsPanel({
       </div>
 
       {undeposited.count > 0 && (
-        <div className="flex flex-col gap-2 rounded-[10px] border border-amber-200 bg-warning-soft p-3 text-[13px] tabular">
+        <div className="flex flex-col gap-2 rounded-[10px] border border-warning-border bg-warning-soft p-3 text-[13px] tabular">
           <span className="text-xs font-medium text-warning-text">Waiting to deposit</span>
           <div className="flex justify-between">
-            <span className="text-slate-600">M-Pesa · {plural(undeposited.mpesa.count)}</span>
+            <span className="text-foreground-soft">M-Pesa · {plural(undeposited.mpesa.count)}</span>
             <span className="font-semibold">{formatKsh(undeposited.mpesa.total)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-slate-600">Cash · {plural(undeposited.cash.count)}</span>
+            <span className="text-foreground-soft">Cash · {plural(undeposited.cash.count)}</span>
             <span className="font-semibold">{formatKsh(undeposited.cash.total)}</span>
           </div>
         </div>
@@ -44,7 +44,7 @@ export function DepositsPanel({
       ) : (
         <ul className="flex flex-col">
           {lastDeposits.map((d, i) => (
-            <li key={d.depositedOn} className={`flex items-center gap-3 py-2.5 ${i > 0 ? "border-t border-slate-100" : ""}`}>
+            <li key={d.depositedOn} className={`flex items-center gap-3 py-2.5 ${i > 0 ? "border-t border-divider" : ""}`}>
               <CircleCheck className="size-4 shrink-0 text-positive-text" strokeWidth={2} aria-hidden />
               <span className="flex grow flex-col">
                 <span className="font-medium">{formatDate(d.depositedOn)}</span>

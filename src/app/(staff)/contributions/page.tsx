@@ -106,7 +106,7 @@ async function Results({ searchParams }: { searchParams: PageProps<"/contributio
             </TableHeader>
             <TableBody>
               {result.rows.map((r) => (
-                <TableRow key={r.id} className="border-slate-100">
+                <TableRow key={r.id} className="border-divider">
                   <TableCell className="py-3 pl-5">
                     <Link href={`/parishioners/${r.parishionerId}`} className="flex flex-col hover:underline">
                       <span className="font-medium">{r.parishioner}</span>
@@ -122,7 +122,7 @@ async function Results({ searchParams }: { searchParams: PageProps<"/contributio
                       {r.reason && <span className="text-xs text-muted-foreground">“{r.reason}”</span>}
                     </div>
                   </TableCell>
-                  <TableCell className="py-3 whitespace-nowrap text-slate-600 tabular">
+                  <TableCell className="py-3 whitespace-nowrap text-foreground-soft tabular">
                     {formatDate(r.receivedOn)}
                     {r.dateIsEstimated && <span className="block text-xs font-normal text-muted-foreground">date not recorded</span>}
                   </TableCell>

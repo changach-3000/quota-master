@@ -70,7 +70,7 @@ async function Payments() {
                 {rows.map((e) => {
                   const Icon = e.isReversal ? Undo2 : e.method === "cash" ? Banknote : Smartphone;
                   return (
-                    <TableRow key={e.id} className="border-slate-100">
+                    <TableRow key={e.id} className="border-divider">
                       <TableCell className="py-3 pl-5 whitespace-nowrap tabular">
                         {formatDate(e.receivedOn)}
                         {e.dateIsEstimated && <span className="block text-xs font-normal text-muted-foreground">date not recorded</span>}
@@ -81,7 +81,7 @@ async function Payments() {
                           {e.isReversal ? "Correction" : e.method ? METHOD[e.method] : "—"}
                         </span>
                       </TableCell>
-                      <TableCell className="hidden py-3 font-mono text-xs text-slate-600 sm:table-cell">
+                      <TableCell className="hidden py-3 font-mono text-xs text-foreground-soft sm:table-cell">
                         {e.isReversal ? "Reversed entry" : referenceLabel(e.method, e.reference)}
                       </TableCell>
                       <TableCell className={cn("py-3 pr-5 text-right font-semibold whitespace-nowrap tabular", e.amount < 0 && "text-negative")}>

@@ -7,7 +7,7 @@ import { MemberTabBar, SidebarNav, StaffMobileNav } from "./nav";
 function Logo({ subtitle }: { subtitle: string }) {
   return (
     <Link href="/" className="flex items-center gap-2.5 rounded-lg px-2 py-1 focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none">
-      <span className="flex size-[34px] items-center justify-center rounded-[10px] bg-positive text-white">
+      <span className="flex size-[34px] items-center justify-center rounded-[10px] bg-sunshine text-foreground">
         <Church className="size-[18px]" strokeWidth={2} aria-hidden />
       </span>
       <span className="flex flex-col">
@@ -21,7 +21,7 @@ function Logo({ subtitle }: { subtitle: string }) {
 export function ProfileChip({ initials, name, detail }: { initials: string; name: string; detail: string }) {
   return (
     <div className="flex items-center gap-2.5 border-t border-sidebar-border px-2.5 pt-3">
-      <span className="flex size-9 items-center justify-center rounded-full bg-sidebar-accent text-[13px] font-semibold text-slate-200">
+      <span className="flex size-9 items-center justify-center rounded-full bg-sidebar-accent text-[13px] font-semibold text-sidebar-foreground">
         {initials}
       </span>
       <span className="flex min-w-0 grow flex-col">

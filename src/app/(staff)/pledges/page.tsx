@@ -110,7 +110,7 @@ async function Pledges({ searchParams }: { searchParams: PageProps<"/pledges">["
               {result.rows.map((r) => {
                 const pct = percent(r.received, r.pledged);
                 return (
-                  <TableRow key={r.id} className="border-slate-100">
+                  <TableRow key={r.id} className="border-divider">
                     <TableCell className="py-3 pl-5">
                       <Link href={`/parishioners/${r.id}`} className="flex flex-col hover:underline">
                         <span className="font-medium">{r.name}</span>

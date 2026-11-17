@@ -9,7 +9,7 @@ export function StaffPage({ children }: { children: ReactNode }) {
   return (
     <>
       <TopBar start={<TopBarSearch placeholder="Search parishioners, M-Pesa codes, receipts" />}>
-        <span className="rounded-full border border-border bg-muted px-2.5 py-0.5 text-xs font-medium text-slate-600">
+        <span className="rounded-full border border-border bg-muted px-2.5 py-0.5 text-xs font-medium text-foreground-soft">
           Demo data
         </span>
         <NotificationsButton />
@@ -55,7 +55,7 @@ export function PageHeader({
 const BUTTON = {
   primary: "bg-primary text-primary-foreground hover:bg-primary-hover",
   secondary: "border border-border bg-card text-foreground hover:bg-muted",
-  danger: "border border-red-200 bg-card text-negative-text hover:bg-negative-soft",
+  danger: "border border-negative-border bg-card text-negative-text hover:bg-negative-soft",
 } as const;
 
 export function buttonClass(variant: keyof typeof BUTTON = "primary", className?: string) {
