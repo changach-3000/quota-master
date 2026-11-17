@@ -64,6 +64,8 @@ model contributions {
   recorded_by         String?           @db.Uuid
   recorded_at         DateTime          @default(now()) @db.Timestamptz(6)
   notes               String?
+  is_historical       Boolean           @default(false)
+  date_is_estimated   Boolean           @default(false)
   parishioners        parishioners      @relation(fields: [parishioner_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   quota_periods       quota_periods     @relation(fields: [period_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   users               users?            @relation(fields: [recorded_by], references: [id], onDelete: NoAction, onUpdate: NoAction)

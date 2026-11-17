@@ -85,7 +85,7 @@ describe("importPayments", () => {
       row({ reference: shared }),
       row({ reference: shared, amountCents: 999_00 }),
       row({ date: "2023-06-16" }),
-      row({ date: "2022-12-31" }),
+      row({ date: "2019-06-30" }),
     ];
     const result = await importPayments(treasurer, { fileName: "mixed.csv", rows }, meta, TODAY);
     if (!result.ok) throw new Error(result.message);

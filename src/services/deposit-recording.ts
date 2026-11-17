@@ -48,15 +48,15 @@ export async function recordDeposit(viewer: Viewer | null, input: RecordDepositI
   try {
     return await prisma.$transaction(async (tx) => {
       const rows = await tx.$queryRaw<
-        { id: string; kind: string; amount_cents: bigint; received_on: string; reversed: boolean; deposited: boolean }[]
+        { id: string; kind: string; amount_cents: bigint; received_on: string; reversed: boolean; deposited: boolean; is_historical: boolean }[]
       >`
-        SELECT c.id, c.kind, c.amount_cents, to_char(c.received_on, 'YYYY-MM-DD') AS received_on,
+        SELECT c.id, c.kind, c.amount_cents, c.is_historical, to_char(c.received_on, 'YYYY-MM-DD') AS received_on,
                EXISTS (SELECT 1 FROM contributions r WHERE r.reverses_id = c.id) AS reversed,
                EXISTS (SELECT 1 FROM deposit_items di WHERE di.contribution_id = c.id) AS deposited
           FROM contributions c
          WHERE c.id = ANY(${d.contributionIds}::uuid[])`;
 
-      if (rows.length !== d.contributionIds.length || rows.some((r) => r.kind !== "payment" || r.reversed)) {
+      if (rows.length !== d.contributionIds.length || rows.some((r) => r.kind !== "payment" || r.reversed || r.is_historical)) {
         return {
           ok: false as const,
           error: { code: "not_depositable" as const, message: "Some selected entries can't be deposited (reversed, or not a payment). Reload the page and select again." },

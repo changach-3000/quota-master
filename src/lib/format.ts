@@ -43,3 +43,10 @@ export function formatChange(current: number, previous: number): string | null {
 export function percent(part: number, whole: number): number {
   return whole > 0 ? Math.round((part / whole) * 100) : 0;
 }
+
+/** How a payment's reference reads in tables. Historical imports may have none. */
+export function referenceLabel(method: "mpesa" | "cash" | null, reference: string, isReversal = false): string {
+  if (isReversal) return reference;
+  if (!reference) return "From paper record";
+  return method === "cash" ? `Receipt ${reference}` : reference;
+}

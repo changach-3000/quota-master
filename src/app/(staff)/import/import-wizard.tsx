@@ -12,11 +12,11 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import type { ImportResult } from "@/services/import";
 import { importPaymentsAction } from "./actions";
+import { readGrid } from "./read-file";
 import { dryRun, guessMapping, parseCsv, SAMPLE_CSV, TARGETS, type Mapping } from "./parse";
 
 const STEPS = ["Upload", "Match columns", "Dry run", "Import"] as const;
 // Step 4 is the results screen; it keeps the last step indicator highlighted.
-const MAX_BYTES = 5 * 1024 * 1024;
 
 export function ImportWizard({ knownNames, today }: { knownNames: string[]; today: string }) {
   const [step, setStep] = useState(0);
@@ -38,8 +38,7 @@ export function ImportWizard({ knownNames, today }: { knownNames: string[]; toda
   const goodTotal = good.reduce((s, r) => s + (r.amountCents ?? 0), 0);
   const missingRequired = TARGETS.filter((t) => t.required && mapping[t.key] === undefined);
 
-  function load(name: string, text: string) {
-    const rows = parseCsv(text);
+  function load(name: string, rows: string[][]) {
     if (rows.length < 2) {
       setUploadError("That file has no data rows under the header.");
       return;
@@ -53,11 +52,11 @@ export function ImportWizard({ knownNames, today }: { knownNames: string[]; toda
 
   async function onFile(file: File | undefined) {
     if (!file) return;
-    if (file.size > MAX_BYTES) return setUploadError("Files up to 5 MB, please.");
-    if (!/\.csv$/i.test(file.name)) {
-      return setUploadError("For now, save the sheet as CSV first (Excel: File › Save As › CSV UTF-8). Direct .xlsx upload comes with the backend.");
+    try {
+      load(file.name, await readGrid(file));
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "That file couldn't be read.");
     }
-    load(file.name, await file.text());
   }
 
   async function commit() {
@@ -136,9 +135,9 @@ export function ImportWizard({ knownNames, today }: { knownNames: string[]; toda
             <span className="flex size-12 items-center justify-center rounded-full bg-positive-soft text-positive-text">
               <Upload className="size-5" aria-hidden />
             </span>
-            <span className="font-medium">Drop a CSV here, or choose a file</span>
+            <span className="font-medium">Drop an Excel (.xlsx) or CSV file here, or choose one</span>
             <span className="text-[13px] text-muted-foreground">One row per payment. Up to 5 MB. Use anonymised data while testing.</span>
-            <input id="import-file" type="file" accept=".csv,text/csv" className="sr-only" onChange={(e) => onFile(e.target.files?.[0])} />
+            <input id="import-file" type="file" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="sr-only" onChange={(e) => onFile(e.target.files?.[0])} />
           </label>
           {uploadError && (
             <p role="alert" className="flex gap-2 text-[13px] font-medium text-negative">
@@ -148,7 +147,7 @@ export function ImportWizard({ knownNames, today }: { knownNames: string[]; toda
           )}
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4 text-[13px] text-muted-foreground">
             <span>No file handy? Try a synthetic sample with a few deliberate mistakes.</span>
-            <button type="button" onClick={() => load("sample-payments.csv", SAMPLE_CSV)} className={buttonClass("secondary")}>
+            <button type="button" onClick={() => load("sample-payments.csv", parseCsv(SAMPLE_CSV))} className={buttonClass("secondary")}>
               <FileSpreadsheet className="size-4" aria-hidden />
               Use sample file
             </button>

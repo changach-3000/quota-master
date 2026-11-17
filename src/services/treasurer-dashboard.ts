@@ -13,7 +13,7 @@ import { assertStaff, type Viewer } from "./viewer";
 
 // Parish-wide overview for the treasurer, admin and auditor.
 
-export type ContributionStatus = "undeposited" | "deposited" | "reversal" | "reversed";
+export type ContributionStatus = "undeposited" | "deposited" | "historical" | "reversal" | "reversed";
 
 export type ParishOverview = {
   period: Period;
@@ -72,7 +72,7 @@ export async function getParishOverview(viewer: Viewer | null, asOf: string): Pr
   const undepositedRows = await prisma.$queryRaw<{ method: "mpesa" | "cash"; n: number; total: bigint; oldest: string }[]>`
     SELECT c.method, COUNT(*)::int AS n, SUM(c.amount_cents)::bigint AS total, to_char(min(c.received_on), 'YYYY-MM-DD') AS oldest
       FROM contributions c
-     WHERE c.kind = 'payment'
+     WHERE c.kind = 'payment' AND NOT c.is_historical
        AND NOT EXISTS (SELECT 1 FROM deposit_items di WHERE di.contribution_id = c.id)
        AND NOT EXISTS (SELECT 1 FROM contributions r WHERE r.reverses_id = c.id)
      GROUP BY c.method`;
@@ -119,11 +119,13 @@ export async function getParishOverview(viewer: Viewer | null, asOf: string): Pr
       amount_cents: bigint;
       deposited: boolean;
       reversed: boolean;
+      is_historical: boolean;
     }[]
   >`
     SELECT c.id, c.kind, pa.display_name AS parishioner, ch.name AS church, c.method,
            c.mpesa_code, c.receipt_no, COALESCE(o.mpesa_code, o.receipt_no) AS original_ref,
            to_char(c.received_on, 'YYYY-MM-DD') AS received_on, c.amount_cents,
+           c.is_historical,
            EXISTS (SELECT 1 FROM deposit_items di WHERE di.contribution_id = c.id) AS deposited,
            EXISTS (SELECT 1 FROM contributions r WHERE r.reverses_id = c.id)       AS reversed
       FROM contributions c
@@ -176,7 +178,7 @@ export async function getParishOverview(viewer: Viewer | null, asOf: string): Pr
       reference: r.kind === "reversal" ? `of ${r.original_ref ?? "payment"}` : (r.mpesa_code ?? r.receipt_no ?? ""),
       receivedOn: r.received_on,
       amount: r.kind === "reversal" ? -Number(r.amount_cents) : Number(r.amount_cents),
-      status: r.kind === "reversal" ? "reversal" : r.reversed ? "reversed" : r.deposited ? "deposited" : "undeposited",
+      status: r.kind === "reversal" ? "reversal" : r.reversed ? "reversed" : r.deposited ? "deposited" : r.is_historical ? "historical" : "undeposited",
     })),
     lastDeposits: depositRows.map((d) => ({ depositedOn: d.deposited_on, amount: Number(d.amount), items: d.items })),
     lastDepositOn: depositRows[0]?.deposited_on ?? null,

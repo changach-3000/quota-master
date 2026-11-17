@@ -35,7 +35,7 @@ export async function listUndeposited(viewer: Viewer | null): Promise<Undeposite
       FROM contributions c
       JOIN parishioners pa ON pa.id = c.parishioner_id
       JOIN churches ch ON ch.id = pa.church_id
-     WHERE c.kind = 'payment'
+     WHERE c.kind = 'payment' AND NOT c.is_historical
        AND NOT EXISTS (SELECT 1 FROM deposit_items di WHERE di.contribution_id = c.id)
        AND NOT EXISTS (SELECT 1 FROM contributions r WHERE r.reverses_id = c.id)
      ORDER BY c.received_on, c.recorded_at`;

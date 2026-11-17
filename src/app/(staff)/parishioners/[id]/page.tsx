@@ -1,7 +1,7 @@
 import { Figure, LinkButton, PageHeader, StaffPage } from "@/components/app/page";
 import { Meter, Panel, StatusBadge } from "@/components/dashboard/primitives";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatDate, formatKsh, percent } from "@/lib/format";
+import { formatDate, formatKsh, percent, referenceLabel } from "@/lib/format";
 import { canWrite, requireStaffViewer } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { getParishioner } from "@/services/parishioners";
@@ -104,14 +104,17 @@ async function Detail({ params }: { params: PageProps<"/parishioners/[id]">["par
             </TableHeader>
             <TableBody>
               {p.ledger.map((e) => {
-                const status = e.kind === "reversal" ? "reversal" : e.reversed ? "reversed" : e.deposited ? "deposited" : "undeposited";
+                const status = e.kind === "reversal" ? "reversal" : e.reversed ? "reversed" : e.deposited ? "deposited" : e.historical ? "historical" : "undeposited";
                 return (
                   <TableRow key={e.id} className="border-slate-100">
-                    <TableCell className="py-3 pl-5 whitespace-nowrap tabular">{formatDate(e.receivedOn)}</TableCell>
+                    <TableCell className="py-3 pl-5 whitespace-nowrap tabular">
+                      {formatDate(e.receivedOn)}
+                      {e.dateIsEstimated && <span className="block text-xs font-normal text-muted-foreground">date not recorded</span>}
+                    </TableCell>
                     <TableCell className="py-3">
                       <span className="flex flex-col">
                         <span>{e.kind === "reversal" ? "Reversal" : e.method ? METHOD[e.method] : "—"}</span>
-                        <span className="font-mono text-xs text-muted-foreground">{e.reference}</span>
+                        <span className="font-mono text-xs text-muted-foreground">{referenceLabel(e.method, e.reference, e.kind === "reversal")}</span>
                         {e.reason && <span className="text-xs text-muted-foreground">“{e.reason}”</span>}
                       </span>
                     </TableCell>

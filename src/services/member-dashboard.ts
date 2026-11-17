@@ -29,6 +29,7 @@ export type MemberDashboard = {
     reference: string;
     amount: number; // negative for reversals
     isReversal: boolean;
+    dateIsEstimated: boolean;
   }[];
   church: {
     quota: number;
@@ -66,9 +67,10 @@ export async function getMemberDashboard(viewer: Viewer | null, asOf: string): P
       reference: string | null;
       received_on: string;
       amount_cents: bigint;
+      date_is_estimated: boolean;
     }[]
   >`
-    SELECT c.id, c.kind, c.method,
+    SELECT c.id, c.kind, c.method, c.date_is_estimated,
            CASE c.kind WHEN 'reversal' THEN 'Correction' ELSE COALESCE(c.mpesa_code, c.receipt_no) END AS reference,
            to_char(c.received_on, 'YYYY-MM-DD') AS received_on, c.amount_cents
       FROM contributions c
@@ -103,6 +105,7 @@ export async function getMemberDashboard(viewer: Viewer | null, asOf: string): P
       reference: p.reference ?? "",
       amount: p.kind === "reversal" ? -Number(p.amount_cents) : Number(p.amount_cents),
       isReversal: p.kind === "reversal",
+      dateIsEstimated: p.date_is_estimated,
     })),
     church: { quota, collected, collectedLastYear, monthly },
   };
@@ -128,17 +131,18 @@ export type MyLedgerEntry = {
   reference: string;
   amount: number; // negative for reversals
   isReversal: boolean;
+  dateIsEstimated: boolean;
 };
 
 /** Every one of the viewer's own payments and corrections, all periods. */
 export async function getMyLedger(viewer: Viewer | null): Promise<MyLedgerEntry[]> {
   const parishionerId = ownParishionerId(viewer);
   const rows = await prisma.$queryRaw<
-    { id: string; period: string; received_on: string; method: "mpesa" | "cash" | null; reference: string | null; kind: "payment" | "reversal"; amount_cents: bigint }[]
+    { id: string; period: string; received_on: string; method: "mpesa" | "cash" | null; reference: string | null; kind: "payment" | "reversal"; amount_cents: bigint; date_is_estimated: boolean }[]
   >`
     SELECT c.id, q.name AS period, to_char(c.received_on, 'YYYY-MM-DD') AS received_on, c.method,
            CASE c.kind WHEN 'reversal' THEN 'Correction' ELSE COALESCE(c.mpesa_code, c.receipt_no) END AS reference,
-           c.kind, c.amount_cents
+           c.kind, c.amount_cents, c.date_is_estimated
       FROM contributions c JOIN quota_periods q ON q.id = c.period_id
      WHERE c.parishioner_id = ${parishionerId}::uuid
      ORDER BY c.received_on DESC, c.recorded_at DESC`;
@@ -150,6 +154,7 @@ export async function getMyLedger(viewer: Viewer | null): Promise<MyLedgerEntry[
     reference: r.reference ?? "",
     amount: r.kind === "reversal" ? -Number(r.amount_cents) : Number(r.amount_cents),
     isReversal: r.kind === "reversal",
+    dateIsEstimated: r.date_is_estimated,
   }));
 }
 

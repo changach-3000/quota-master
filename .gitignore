@@ -46,3 +46,6 @@ next-env.d.ts
 
 # Encrypted backups (never commit)
 /backups/
+
+# Real parish data (names, amounts): never commit
+/private/

@@ -191,6 +191,35 @@ describe("contributions", () => {
   });
 });
 
+describe("historical payments", () => {
+  const HIST = `
+    INSERT INTO contributions (kind, parishioner_id, period_id, amount_cents, method, received_on, idempotency_key, is_historical, date_is_estimated)
+    VALUES ($1, $2, $3, 100000, $4, '2026-03-01', $5, $6, $7)`;
+
+  it("allows M-Pesa and cash without a code or receipt only when historical", async () => {
+    await expect(db.query(HIST, ["payment", fx.parishionerId, fx.periodId, "mpesa", randomUUID(), true, true])).resolves.toBeDefined();
+    await expect(db.query(HIST, ["payment", fx.parishionerId, fx.periodId, "cash", randomUUID(), true, false])).resolves.toBeDefined();
+    expect((await dbError(HIST, ["payment", fx.parishionerId, fx.periodId, "mpesa", randomUUID(), false, false])).constraint).toBe("contributions_mpesa_requires_code");
+    expect((await dbError(HIST, ["payment", fx.parishionerId, fx.periodId, "cash", randomUUID(), false, false])).constraint).toBe("contributions_cash_requires_receipt");
+  });
+
+  it("only historical payments can have an estimated date", async () => {
+    const err = await dbError(
+      `INSERT INTO contributions (kind, parishioner_id, period_id, amount_cents, method, mpesa_code, received_on, idempotency_key, date_is_estimated)
+       VALUES ('payment', $1, $2, 1000, 'mpesa', $3, '2026-03-01', $4, true)`,
+      [fx.parishionerId, fx.periodId, mpesaCode(), randomUUID()],
+    );
+    expect(err.constraint).toBe("contributions_historical_shape");
+  });
+
+  it("never lets a historical payment into a deposit", async () => {
+    const { rows } = await db.query(`${HIST} RETURNING id`, ["payment", fx.parishionerId, fx.periodId, "cash", randomUUID(), true, true]);
+    const dep = await one<{ id: string }>(`INSERT INTO deposits (deposited_on, amount_cents) VALUES ('2026-03-20', 100000) RETURNING id`);
+    const err = await dbError(`INSERT INTO deposit_items (deposit_id, contribution_id) VALUES ($1, $2)`, [dep.id, rows[0].id]);
+    expect(err.message).toMatch(/historical payments/);
+  });
+});
+
 describe("quota periods", () => {
   it("rejects overlapping periods", async () => {
     const err = await dbError(

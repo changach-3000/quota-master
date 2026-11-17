@@ -2,7 +2,7 @@ import { buttonClass, EmptyState, TableSkeleton } from "@/components/app/page";
 import { Panel } from "@/components/dashboard/primitives";
 import { MemberPage } from "@/components/member/member-page";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatDate, formatKsh } from "@/lib/format";
+import { formatDate, formatKsh, referenceLabel } from "@/lib/format";
 import { requireMemberViewer } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { getMyLedger } from "@/services/member-dashboard";
@@ -71,7 +71,10 @@ async function Payments() {
                   const Icon = e.isReversal ? Undo2 : e.method === "cash" ? Banknote : Smartphone;
                   return (
                     <TableRow key={e.id} className="border-slate-100">
-                      <TableCell className="py-3 pl-5 whitespace-nowrap tabular">{formatDate(e.receivedOn)}</TableCell>
+                      <TableCell className="py-3 pl-5 whitespace-nowrap tabular">
+                        {formatDate(e.receivedOn)}
+                        {e.dateIsEstimated && <span className="block text-xs font-normal text-muted-foreground">date not recorded</span>}
+                      </TableCell>
                       <TableCell className="py-3">
                         <span className="inline-flex items-center gap-2">
                           <Icon className={cn("size-4", e.isReversal ? "text-negative" : "text-muted-foreground")} strokeWidth={1.75} aria-hidden />
@@ -79,7 +82,7 @@ async function Payments() {
                         </span>
                       </TableCell>
                       <TableCell className="hidden py-3 font-mono text-xs text-slate-600 sm:table-cell">
-                        {e.isReversal ? "Reversed entry" : e.method === "cash" ? `Receipt ${e.reference}` : e.reference}
+                        {e.isReversal ? "Reversed entry" : referenceLabel(e.method, e.reference)}
                       </TableCell>
                       <TableCell className={cn("py-3 pr-5 text-right font-semibold whitespace-nowrap tabular", e.amount < 0 && "text-negative")}>
                         {formatKsh(e.amount)}

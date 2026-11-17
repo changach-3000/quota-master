@@ -20,7 +20,7 @@ nothing about anyone else.
 | Bank deposits: tick payments, match the slip | Statement download (CSV) |
 | Versioned pledges; church quotas per period | Change password, update phone |
 | Reports with CSV export and print; append-only audit log | |
-| CSV import with a dry run; safe to re-run (`samples/` has a test file) | |
+| Import the yearly quota sheet (.xlsx or CSV) or a payment list, with a dry run; safe to re-run | |
 
 Roles: **admin**, **treasurer**, **auditor** (sees everything, changes nothing), **member**.
 
@@ -83,6 +83,20 @@ auditor, members) that sign in with one click. They also accept
 - In production behind a proxy, set `TRUST_PROXY=1` so client IPs are recorded and rate-limited.
 
 Not done yet: two-step sign-in for admin/treasurer, a Content Security Policy, email delivery of invite links.
+
+## Importing the treasurer's sheet
+
+**Import** accepts Excel (`.xlsx`) or CSV, in two shapes:
+
+- **Yearly sheet**: one row per person, as the treasurer keeps it now.
+  - Columns are NAME, QUOTA, then each payment in its own cell, then the total and REMARKS. Amounts marked `-M` (e.g. `3200-M`) are M-Pesa; the rest are cash.
+  - The QUOTA becomes the person's pledge for the year. People who don't exist yet are added to the chosen church.
+  - Each payment is recorded as **Historical**: it needs no code or receipt, and it is never put in a deposit because that money was banked long ago.
+  - You can type real dates during review. Payments left without one get an "as at" date and show "date not recorded".
+  - The review flags rows whose payments don't add up to the total, and "CLEARED" rows that are still short.
+- **Payment list**: one row per payment with date, name, amount, method and code or receipt.
+
+Re-importing the same file never records anything twice. `samples/` holds synthetic files in both shapes. **Keep real sheets out of the repository**, and import them straight from your own copy.
 
 ## Backups and the restore drill
 

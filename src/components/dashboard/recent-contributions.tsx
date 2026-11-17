@@ -1,5 +1,5 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatDate, formatKsh } from "@/lib/format";
+import { formatDate, formatKsh, referenceLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { Panel, StatusBadge, type Status } from "./primitives";
@@ -57,7 +57,7 @@ export function RecentContributions({ rows }: { rows: Row[] }) {
                   <div className="flex flex-col">
                     <span>{r.status === "reversal" ? "Reversal" : r.method ? METHOD[r.method] : "—"}</span>
                     <span className="font-mono text-xs text-muted-foreground">
-                      {r.method === "cash" && r.status !== "reversal" ? `Receipt ${r.reference}` : r.reference}
+                      {referenceLabel(r.method, r.reference, r.status === "reversal")}
                     </span>
                   </div>
                 </TableCell>

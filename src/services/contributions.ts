@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { getPeriodAsOf } from "./periods";
 import { assertStaff, type Viewer } from "./viewer";
 
-export type ContributionStatus = "undeposited" | "deposited" | "reversal" | "reversed";
+export type ContributionStatus = "undeposited" | "deposited" | "historical" | "reversal" | "reversed";
 
 export type ContributionFilters = {
   q?: string;
@@ -26,6 +26,7 @@ export type ContributionRow = {
   amount: number; // negative for reversals
   status: ContributionStatus;
   reason: string | null;
+  dateIsEstimated: boolean;
 };
 
 export const PAGE_SIZE = 25;
@@ -36,6 +37,7 @@ const STATUS_SQL = Prisma.sql`
     WHEN c.kind = 'reversal' THEN 'reversal'
     WHEN EXISTS (SELECT 1 FROM contributions r WHERE r.reverses_id = c.id) THEN 'reversed'
     WHEN EXISTS (SELECT 1 FROM deposit_items di WHERE di.contribution_id = c.id) THEN 'deposited'
+    WHEN c.is_historical THEN 'historical'
     ELSE 'undeposited'
   END`;
 
@@ -52,7 +54,7 @@ export async function listContributions(viewer: Viewer | null, f: ContributionFi
   }
   if (f.church) where.push(Prisma.sql`ch.id = ${f.church}::uuid`);
   if (f.method === "mpesa" || f.method === "cash") where.push(Prisma.sql`c.method = ${f.method}::payment_method`);
-  if (f.status && ["undeposited", "deposited", "reversal", "reversed"].includes(f.status)) {
+  if (f.status && ["undeposited", "deposited", "historical", "reversal", "reversed"].includes(f.status)) {
     where.push(Prisma.sql`(${STATUS_SQL}) = ${f.status}`);
   }
   const whereSql = Prisma.join(where, " AND ");
@@ -71,6 +73,7 @@ export async function listContributions(viewer: Viewer | null, f: ContributionFi
       amount_cents: bigint;
       status: ContributionStatus;
       reason: string | null;
+      date_is_estimated: boolean;
     }[]
   >`
     SELECT c.id, c.parishioner_id, pa.display_name AS parishioner, ch.name AS church, c.kind, c.method,
@@ -78,7 +81,7 @@ export async function listContributions(viewer: Viewer | null, f: ContributionFi
                        ELSE COALESCE(c.mpesa_code, c.receipt_no) END AS reference,
            to_char(c.received_on, 'YYYY-MM-DD') AS received_on,
            to_char(c.recorded_at AT TIME ZONE 'Africa/Nairobi', 'YYYY-MM-DD"T"HH24:MI') AS recorded_at,
-           c.amount_cents, ${STATUS_SQL} AS status, c.reason
+           c.amount_cents, ${STATUS_SQL} AS status, c.reason, c.date_is_estimated
       FROM contributions c
       JOIN parishioners pa ON pa.id = c.parishioner_id
       JOIN churches ch ON ch.id = pa.church_id
@@ -110,6 +113,7 @@ export async function listContributions(viewer: Viewer | null, f: ContributionFi
         amount: r.kind === "reversal" ? -Number(r.amount_cents) : Number(r.amount_cents),
         status: r.status,
         reason: r.reason,
+        dateIsEstimated: r.date_is_estimated,
       }),
     ),
     total: totals.n,

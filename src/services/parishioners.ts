@@ -127,6 +127,8 @@ export type LedgerEntry = {
   reason: string | null;
   deposited: boolean;
   reversed: boolean;
+  historical: boolean;
+  dateIsEstimated: boolean;
 };
 
 export async function getParishioner(viewer: Viewer | null, id: string, asOf: string) {
@@ -162,12 +164,14 @@ export async function getParishioner(viewer: Viewer | null, id: string, asOf: st
     {
       id: string; kind: "payment" | "reversal"; period: string; method: "mpesa" | "cash" | null; reference: string | null;
       received_on: string; amount_cents: bigint; reason: string | null; deposited: boolean; reversed: boolean;
+      is_historical: boolean; date_is_estimated: boolean;
     }[]
   >`
     SELECT c.id, c.kind, q.name AS period, c.method,
            CASE c.kind WHEN 'reversal' THEN 'of ' || COALESCE(o.mpesa_code, o.receipt_no, 'payment')
                        ELSE COALESCE(c.mpesa_code, c.receipt_no) END AS reference,
            to_char(c.received_on, 'YYYY-MM-DD') AS received_on, c.amount_cents, c.reason,
+           c.is_historical, c.date_is_estimated,
            EXISTS (SELECT 1 FROM deposit_items di WHERE di.contribution_id = c.id) AS deposited,
            EXISTS (SELECT 1 FROM contributions r WHERE r.reverses_id = c.id) AS reversed
       FROM contributions c
@@ -214,7 +218,19 @@ export async function getParishioner(viewer: Viewer | null, id: string, asOf: st
         reason: r.reason,
         deposited: r.deposited,
         reversed: r.reversed,
+        historical: r.is_historical,
+        dateIsEstimated: r.date_is_estimated,
       }),
     ),
   };
+}
+
+/** Active parishioner names grouped by church id, for the import's "new person" check. */
+export async function listNamesByChurch(viewer: Viewer | null): Promise<Record<string, string[]>> {
+  assertStaff(viewer);
+  const rows = await prisma.$queryRaw<{ church_id: string; name: string }[]>`
+    SELECT church_id, display_name AS name FROM parishioners WHERE is_active`;
+  const out: Record<string, string[]> = {};
+  for (const r of rows) (out[r.church_id] ??= []).push(r.name);
+  return out;
 }

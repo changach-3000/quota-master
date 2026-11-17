@@ -3,7 +3,7 @@ import { ChurchTrend } from "@/components/member/church-trend";
 import { HowToGiveButton } from "@/components/member/how-to-give";
 import { NotificationsButton, TopBar } from "@/components/shell/top-bar";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatChange, formatDate, formatKsh, monthLabel, percent } from "@/lib/format";
+import { formatChange, formatDate, formatKsh, monthLabel, percent, referenceLabel } from "@/lib/format";
 import { getViewer } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { getMemberDashboard } from "@/services/member-dashboard";
@@ -144,7 +144,10 @@ async function MyGiving() {
                     const Icon = p.isReversal ? Undo2 : p.method === "cash" ? Banknote : Smartphone;
                     return (
                       <TableRow key={p.id} className="border-slate-100">
-                        <TableCell className="py-3 pl-5 whitespace-nowrap tabular">{formatDate(p.receivedOn)}</TableCell>
+                        <TableCell className="py-3 pl-5 whitespace-nowrap tabular">
+                          {formatDate(p.receivedOn)}
+                          {p.dateIsEstimated && <span className="block text-xs font-normal text-muted-foreground">date not recorded</span>}
+                        </TableCell>
                         <TableCell className="py-3">
                           <span className="inline-flex items-center gap-2">
                             <Icon className={cn("size-4", p.isReversal ? "text-negative" : "text-muted-foreground")} strokeWidth={1.75} aria-hidden />
@@ -152,7 +155,7 @@ async function MyGiving() {
                           </span>
                         </TableCell>
                         <TableCell className="hidden py-3 font-mono text-xs text-slate-600 sm:table-cell">
-                          {p.method === "cash" && !p.isReversal ? `Receipt ${p.reference}` : p.isReversal ? "Reversed entry" : p.reference}
+                          {p.isReversal ? "Reversed entry" : referenceLabel(p.method, p.reference)}
                         </TableCell>
                         <TableCell className={cn("py-3 pr-5 text-right font-semibold whitespace-nowrap tabular", p.amount < 0 && "text-negative")}>
                           {formatKsh(p.amount)}

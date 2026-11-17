@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { CircleCheck, Clock, Undo2, type LucideIcon } from "lucide-react";
+import { CircleCheck, Clock, History, Undo2, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 export function Panel({ className, children, ...props }: React.ComponentProps<"section">) {
@@ -113,11 +113,12 @@ export function Meter({
   );
 }
 
-export type Status = "undeposited" | "deposited" | "reversal" | "reversed";
+export type Status = "undeposited" | "deposited" | "historical" | "reversal" | "reversed";
 
 const STATUS: Record<Status, { label: string; icon: LucideIcon; className: string }> = {
   undeposited: { label: "Undeposited", icon: Clock, className: "border-amber-200 bg-warning-soft text-warning-text" },
   deposited: { label: "Deposited", icon: CircleCheck, className: "border-green-200 bg-positive-soft text-positive-text" },
+  historical: { label: "Historical", icon: History, className: "border-violet-200 bg-violet-50 text-violet-700" },
   reversal: { label: "Reversal", icon: Undo2, className: "border-red-200 bg-negative-soft text-negative-text" },
   reversed: { label: "Reversed", icon: Undo2, className: "border-slate-200 bg-muted text-slate-600" },
 };

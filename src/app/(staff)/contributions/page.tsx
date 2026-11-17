@@ -3,7 +3,7 @@ import { EmptyState, LinkButton, PageHeader, StaffPage, TableSkeleton } from "@/
 import { Pagination, pageParam } from "@/components/app/pagination";
 import { Panel, StatusBadge } from "@/components/dashboard/primitives";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatDate, formatKsh } from "@/lib/format";
+import { formatDate, formatKsh, referenceLabel } from "@/lib/format";
 import { oneOf, param, uuidParam } from "@/lib/search-params";
 import { canWrite, requireStaffViewer } from "@/lib/session";
 import { cn } from "@/lib/utils";
@@ -55,7 +55,7 @@ async function Results({ searchParams }: { searchParams: PageProps<"/contributio
     q: param(sp.q),
     church: uuidParam(param(sp.church)),
     method: oneOf(param(sp.method), ["mpesa", "cash"] as const),
-    status: oneOf(param(sp.status), ["undeposited", "deposited", "reversal", "reversed"] as const),
+    status: oneOf(param(sp.status), ["undeposited", "deposited", "historical", "reversal", "reversed"] as const),
     page: pageParam(param(sp.page)),
   };
   const [churches, result] = await Promise.all([listChurches(viewer), listContributions(viewer, filters)]);
@@ -74,6 +74,7 @@ async function Results({ searchParams }: { searchParams: PageProps<"/contributio
             options: [
               { value: "undeposited", label: "Undeposited" },
               { value: "deposited", label: "Deposited" },
+              { value: "historical", label: "Historical (imported)" },
               { value: "reversal", label: "Reversal" },
               { value: "reversed", label: "Reversed" },
             ],
@@ -116,12 +117,15 @@ async function Results({ searchParams }: { searchParams: PageProps<"/contributio
                     <div className="flex flex-col">
                       <span>{r.status === "reversal" ? "Reversal" : r.method ? METHOD[r.method] : "—"}</span>
                       <span className="font-mono text-xs text-muted-foreground">
-                        {r.method === "cash" && r.status !== "reversal" ? `Receipt ${r.reference}` : r.reference}
+                        {referenceLabel(r.method, r.reference, r.status === "reversal")}
                       </span>
                       {r.reason && <span className="text-xs text-muted-foreground">“{r.reason}”</span>}
                     </div>
                   </TableCell>
-                  <TableCell className="py-3 whitespace-nowrap text-slate-600 tabular">{formatDate(r.receivedOn)}</TableCell>
+                  <TableCell className="py-3 whitespace-nowrap text-slate-600 tabular">
+                    {formatDate(r.receivedOn)}
+                    {r.dateIsEstimated && <span className="block text-xs font-normal text-muted-foreground">date not recorded</span>}
+                  </TableCell>
                   <TableCell className="py-3">
                     <StatusBadge status={r.status} />
                   </TableCell>
@@ -136,7 +140,7 @@ async function Results({ searchParams }: { searchParams: PageProps<"/contributio
                   </TableCell>
                   {writable && (
                     <TableCell className="py-3 pr-5 text-right">
-                      {(r.status === "undeposited" || r.status === "deposited") && (
+                      {(r.status === "undeposited" || r.status === "deposited" || r.status === "historical") && (
                         <ReverseButton
                           contribution={{
                             id: r.id,
